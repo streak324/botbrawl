@@ -1,7 +1,9 @@
 import arcade
+import numpy
+import pymunk
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
 SCREEN_TITLE = "Starting Template"
 
 # brawlhalla notes
@@ -20,34 +22,21 @@ class Player():
 		self.x = 0
 		self.y = 0
 
-INPUT_JUMP = 0
-INPUT_MOVE_LEFT = 1
-INPUT_MOVE_RIGHT = 2
-INPUT_MOVE_DOWN = 3
+INPUT_MOVE_LEFT = 0
+INPUT_MOVE_RIGHT = 1
+INPUT_MOVE_SIDE_PRECEDENCE = 2
+INPUT_JUMP = 3
 
-class GameState():
-	pass
-
-class Game():
-	def __init__(self, player_positions: list[tuple[float, float]] = []):
-		self.fighters = [Player(p.x, p.y) for p in range(player_positions)]
-	def step(self, inputs: list[tuple]) -> GameState:
-		pass
-
+SIDE_PRECEDENCE_LEFT = 1
+SIDE_PRECEDENCE_RIGHT = 2
 
 class MyGameWindow(arcade.Window):
-	"""
-	Main application class.
-
-	NOTE: Go ahead and delete the methods you don't need.
-	If you do need a method, delete the 'pass' and replace it
-	with your own code. Don't leave 'pass' in this program.
-	"""
-
 	def __init__(self, width, height, title):
-		self.pos = (200, 300)
-		#0, 1, -1 should be valid values
-		self.move_side_dir = 0
+		self.pos = (200, 400)
+		self.platform_lrtb = (100, 1100, 300, 100)
+		self.input = numpy.zeros(4)
+		self.prev_input = numpy.zeros(4)
+		self.physics_engine = pymunk.
 		super().__init__(width, height, title)
 		arcade.set_background_color(arcade.color.ALMOND)
 
@@ -62,25 +51,28 @@ class MyGameWindow(arcade.Window):
 		h = 16
 		hitbox_color = (171, 174, 105, 128)
 		draw_capsule(self.pos[0],self.pos[1],r,h,hitbox_color)
+		arcade.draw_lrtb_rectangle_filled(self.platform_lrtb[0], self.platform_lrtb[1], self.platform_lrtb[2], self.platform_lrtb[3], arcade.color.YELLOW)
 
 	def on_update(self, delta_time):
-		dx = self.move_side_dir * 10
+		dx = ((float)((self.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_LEFT or self.input[INPUT_MOVE_LEFT] == False) and self.input[INPUT_MOVE_RIGHT]) \
+			- \
+			(float)((self.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_RIGHT or self.input[INPUT_MOVE_RIGHT] == False) and self.input[INPUT_MOVE_LEFT]))
 		self.pos = (self.pos[0] + dx, self.pos[1])
-		pass
+		self.prev_input = self.input.copy()
 
 	def on_key_press(self, key, key_modifiers):
 		if key == arcade.key.LEFT:
-			self.move_side_dir = -1
+			self.input[INPUT_MOVE_LEFT] = True
+			self.input[INPUT_MOVE_SIDE_PRECEDENCE] = SIDE_PRECEDENCE_LEFT
 		if key == arcade.key.RIGHT:
-			self.move_side_dir = 1
-
+			self.input[INPUT_MOVE_RIGHT] = True
+			self.input[INPUT_MOVE_SIDE_PRECEDENCE] = SIDE_PRECEDENCE_RIGHT
 
 	def on_key_release(self, key, key_modifiers):
 		if key == arcade.key.LEFT:
-			self.move_side_dir += 1
+			self.input[INPUT_MOVE_LEFT] = False
 		if key == arcade.key.RIGHT:
-			self.move_side_dir -= 1
-		pass
+			self.input[INPUT_MOVE_RIGHT] = False
 
 	def on_mouse_motion(self, x, y, delta_x, delta_y):
 		"""
