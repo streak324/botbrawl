@@ -94,9 +94,9 @@ class MyGameWindow(arcade.Window):
 		self.input = numpy.zeros(4)
 		self.prev_input = numpy.zeros(4)
 		self.physics_sim = pymunk.Space()
-		self.physics_sim._set_gravity((0,-100))
+		self.physics_sim._set_gravity((0,-10))
 
-		self.fighter = Fighter(self.physics_sim, (20,40))
+		self.fighter = Fighter(self.physics_sim, (30,200))
 
 		self.platform = Platform(self.physics_sim, (10,10), (110,30), arcade.csscolor.YELLOW)
 
@@ -124,6 +124,7 @@ class MyGameWindow(arcade.Window):
 			(float)((self.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_RIGHT or self.input[INPUT_MOVE_RIGHT] == False) and self.input[INPUT_MOVE_LEFT]))
 		self.fighter.hurtbox_body.velocity = (dx, max(self.fighter.hurtbox_body.velocity.y, -FALL_VELOCITY))
 		self.prev_input = self.input.copy()
+		print(self.fighter.hurtbox_body.position, self.fighter.hurtbox_body.velocity)
 		self.physics_sim.step(TIMESTEP)
 
 	def on_key_press(self, key, key_modifiers):
