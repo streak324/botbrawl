@@ -1,7 +1,9 @@
+import math
 import numpy
 import pymunk
 import pyglet
 import pymunk.pyglet_util
+from pymunk.vec2d import Vec2d
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
@@ -18,10 +20,12 @@ INPUT_MOVE_RIGHT = 1
 INPUT_MOVE_SIDE_PRECEDENCE = 2
 INPUT_JUMP = 3
 
-TOTAL_ALLOWED_JUMPS = 3
+TOTAL_MIDAIR_JUMPS_ALLOWED = 3
 
 SIDE_PRECEDENCE_LEFT = 1
 SIDE_PRECEDENCE_RIGHT = 2
+
+JUMP_HEIGHT = 15
 
 #not sure how im going to do this one yet.
 PIXELS_PER_WORLD_UNITS = 10
@@ -35,8 +39,10 @@ HURTBOX_COLOR = (171, 174, 105, 128)
 
 TIMESTEP = 1/60
 
-FIGHTER_COLLISION_TYPE = 1
-PLATFORM_COLLISION_TYPE = 2
+HURTBOX_SENSOR_COLLISION_TYPE = 1
+HITBOX_SENSOR_COLLISION_TYPE = 2
+PLATFORM_COLLISION_TYPE = 3
+FIGHTER_COLLISION_TYPE = 4
 
 FALL_VELOCITY = 60.0
 
@@ -46,19 +52,53 @@ class Fighter():
 		self.hurtbox_body = pymunk.Body(mass=1, moment=float("inf"))
 		self.hurtbox_body._set_position(center)
 		self.hurtbox_c1 = pymunk.Circle(self.hurtbox_body, HURTBOX_CAPSULE_RADIUS, offset=(0, HURTBOX_CAPSULE_STRETCH_LENGTH*0.5))
-		#self.hurtbox_c1.filter = pymunk.ShapeFilter(categories=0b1, mask=0b10)
-		self.hurtbox_c1.collision_type = FIGHTER_COLLISION_TYPE
+		filter = pymunk.ShapeFilter( \
+			categories=0b1 << (HURTBOX_SENSOR_COLLISION_TYPE-1), \
+			mask=0b1 << (HITBOX_SENSOR_COLLISION_TYPE-1))
+		self.hurtbox_c1.collision_type = HURTBOX_SENSOR_COLLISION_TYPE
+		#self.hurtbox_c1.filter = filter
+		#self.hurtbox_c1.sensor = True
 		self.hurtbox_c2 = pymunk.Circle(self.hurtbox_body, HURTBOX_CAPSULE_RADIUS, offset=(0, -HURTBOX_CAPSULE_STRETCH_LENGTH*0.5))
-		#self.hurtbox_c2.filter = pymunk.ShapeFilter(categories=0b1, mask=0b10)
-		self.hurtbox_c2.collision_type = FIGHTER_COLLISION_TYPE
+		#self.hurtbox_c2.filter = filter
+		#self.hurtbox_c2.sensor = True
+		self.hurtbox_c2.collision_type = HURTBOX_SENSOR_COLLISION_TYPE
 		self.hurtbox_box = pymunk.Poly.create_box(self.hurtbox_body, (2*HURTBOX_CAPSULE_RADIUS, HURTBOX_CAPSULE_STRETCH_LENGTH))
-		self.hurtbox_box.collision_type = FIGHTER_COLLISION_TYPE
-		self.jumps_left = TOTAL_ALLOWED_JUMPS
-		space.add(self.hurtbox_body, self.hurtbox_c1, self.hurtbox_c2, self.hurtbox_box)
+		self.hurtbox_box.collision_type = HURTBOX_SENSOR_COLLISION_TYPE
+		#self.hurtbox_c2.filter = filter
+		#self.hurtbox_c2.sensor = True
 
-def fighter_platform_collision_handler(arb: pymunk.Arbiter, space: pymunk.Space, data: any) -> bool:
-	self.jumps_left = TOTAL_ALLOWED_JUMPS
-	return True
+		self.hurtbox_shape = pymunk.Segment(self.hurtbox_body, (HURTBOX_CAPSULE_RADIUS, HURTBOX_CAPSULE_STRETCH_LENGTH), (HURTBOX_CAPSULE_RADIUS, -HURTBOX_CAPSULE_STRETCH_LENGTH), HURTBOX_CAPSULE_RADIUS)
+
+		space.add(self.hurtbox_body, self.hurtbox_c1, self.hurtbox_c2, self.hurtbox_box)
+		#space.add(self.hurtbox_body, self.hurtbox_shape)
+
+		self.midair_jumps_left = 0
+		self.is_grounded = False
+
+	def compute_grounding(self):
+		grounding = {
+			"normal": Vec2d.zero(),
+			"penetration": Vec2d.zero(),
+			"impulse": Vec2d.zero(),
+			"position": Vec2d.zero(),
+			"body": None,
+		}
+		# find out if player is standing on ground
+
+		def f(arbiter: pymunk.Arbiter):
+			n = -arbiter.contact_point_set.normal
+			if n.y > grounding["normal"].y:
+				grounding["normal"] = n
+				grounding["penetration"] = -arbiter.contact_point_set.points[0].distance
+				grounding["body"] = arbiter.shapes[1].body
+				grounding["impulse"] = arbiter.total_impulse
+				grounding["position"] = arbiter.contact_point_set.points[0].point_b
+
+		self.hurtbox_body.each_arbiter(f)
+		self.is_grounded = False
+		if grounding["body"] != None:# and abs(grounding["normal"].x / grounding["normal"].y) < feet.friction:
+			self.is_grounded = True
+			self.midair_jumps_left = TOTAL_MIDAIR_JUMPS_ALLOWED
 
 class GameState():
 	def __init__(self):
@@ -76,32 +116,35 @@ class GameState():
 		self.handler = self.physics_sim.add_collision_handler(FIGHTER_COLLISION_TYPE, PLATFORM_COLLISION_TYPE)
 		self.handler.begin = fighter_platform_collision_handler
 		self.gravity_enabled = True
+
+def fighter_platform_collision_handler(arb: pymunk.Arbiter, space: pymunk.Space, data: any) -> bool:
+	print("Hi!")
+	return True
 	
 game_state = GameState()
 
 def step_game(_):
-	def f(arbiter):
-		n = -arbiter.contact_point_set.normal
-		if n.y > grounding["normal"].y:
-			grounding["normal"] = n
-			grounding["penetration"] = -arbiter.contact_point_set.points[0].distance
-			grounding["body"] = arbiter.shapes[1].body
-			grounding["impulse"] = arbiter.total_impulse
-			grounding["position"] = arbiter.contact_point_set.points[0].point_b
-
-	self.fighter.each_arbiter(f)
-
-
-	game_state.physics_sim.step(TIMESTEP)
 	dx = 50 * ((float)((game_state.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_LEFT or game_state.input[INPUT_MOVE_LEFT] == False) and game_state.input[INPUT_MOVE_RIGHT]) \
 		- \
 		(float)((game_state.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_RIGHT or game_state.input[INPUT_MOVE_RIGHT] == False) and game_state.input[INPUT_MOVE_LEFT]))
 	game_state.fighter.hurtbox_body.velocity = (dx, max(game_state.fighter.hurtbox_body.velocity.y, -FALL_VELOCITY))
-	game_state.prev_input = game_state.input.copy()
-	print(game_state.fighter.hurtbox_body.position, game_state.fighter.hurtbox_body.velocity)
-	pass
+	game_state.fighter.compute_grounding()
+	if (game_state.prev_input[INPUT_JUMP] == False and game_state.input[INPUT_JUMP] and
+		(game_state.fighter.is_grounded or game_state.fighter.midair_jumps_left > 0)
+		):
+		print("JUMPING")
+		#only subtract midair jumps if not fighter is not grounded
+		game_state.fighter.midair_jumps_left -= int(not game_state.fighter.is_grounded)
+		vel = game_state.fighter.hurtbox_body.velocity
+		game_state.fighter.hurtbox_body.velocity = (vel.x, 0)
+		jump_v = math.sqrt(2.0 * JUMP_HEIGHT * abs(game_state.physics_sim.gravity.y))
+		impulse = (0, game_state.fighter.hurtbox_body.mass * jump_v)
+		game_state.fighter.hurtbox_body.apply_impulse_at_local_point(impulse)
+	game_state.physics_sim.step(TIMESTEP)
 
-game_window = pyglet.window.Window(SCREEN_WIDTH, SCREEN_HEIGHT)
+	game_state.prev_input = game_state.input.copy()
+
+game_window = pyglet.window.Window(SCREEN_WIDTH, SCREEN_HEIGHT, fullscreen=True)
 physics_batch = pyglet.graphics.Batch()
 @game_window.event
 def on_draw():
@@ -122,7 +165,8 @@ def on_key_press(key, modifiers):
 	if key == pyglet.window.key.RIGHT:
 		game_state.input[INPUT_MOVE_RIGHT] = True
 		game_state.input[INPUT_MOVE_SIDE_PRECEDENCE] = SIDE_PRECEDENCE_RIGHT
-	if key == pyglet.window.key.SPACE:
+	if key == pyglet.window.key.UP:
+		game_state.input[INPUT_JUMP] = True
 	if key == pyglet.window.key.O:
 		game_state.gravity_enabled = not game_state.gravity_enabled
 		if game_state.gravity_enabled:
@@ -137,6 +181,8 @@ def on_key_release(key, modifiers):
 		game_state.input[INPUT_MOVE_LEFT] = False
 	if key == pyglet.window.key.RIGHT:
 		game_state.input[INPUT_MOVE_RIGHT] = False
+	if key == pyglet.window.key.UP:
+		game_state.input[INPUT_JUMP] = False
 
 if __name__ == "__main__":
 	pyglet.clock.schedule_interval(step_game, TIMESTEP)
