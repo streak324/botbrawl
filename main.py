@@ -20,7 +20,7 @@ INPUT_MOVE_RIGHT = 1
 INPUT_MOVE_SIDE_PRECEDENCE = 2
 INPUT_JUMP = 3
 
-TOTAL_MIDAIR_JUMPS_ALLOWED = 3
+TOTAL_MIDAIR_JUMPS_ALLOWED = 2
 
 SIDE_PRECEDENCE_LEFT = 1
 SIDE_PRECEDENCE_RIGHT = 2
@@ -39,12 +39,20 @@ HURTBOX_COLOR = (171, 174, 105, 128)
 
 TIMESTEP = 1/60
 
-HURTBOX_SENSOR_COLLISION_TYPE = 1
+HURTBOX_COLLISION_TYPE = 1
 HITBOX_SENSOR_COLLISION_TYPE = 2
-PLATFORM_COLLISION_TYPE = 3
-FIGHTER_COLLISION_TYPE = 4
+WALL_COLLISION_TYPE = 3
+FEET_COLLISION_TYPE = 4
 
 FALL_VELOCITY = 60.0
+
+
+wall_collision_filter = pymunk.ShapeFilter( \
+	categories=0b1 << (HURTBOX_COLLISION_TYPE-1), \
+	mask=0b1 << (WALL_COLLISION_TYPE-1))
+
+def create_pymunk_box(body: pymunk.Body, min: tuple[float,float], max: tuple[float,float]):
+	return pymunk.Poly(body, [min, (max[0], min[1]), max, (min[0], max[1])])
 
 class Fighter():
 	def __init__(self, space: pymunk.Space, center: tuple[float, float]):
@@ -53,24 +61,26 @@ class Fighter():
 		self.hurtbox_body._set_position(center)
 		self.hurtbox_c1 = pymunk.Circle(self.hurtbox_body, HURTBOX_CAPSULE_RADIUS, offset=(0, HURTBOX_CAPSULE_STRETCH_LENGTH*0.5))
 		filter = pymunk.ShapeFilter( \
-			categories=0b1 << (HURTBOX_SENSOR_COLLISION_TYPE-1), \
-			mask=0b1 << (HITBOX_SENSOR_COLLISION_TYPE-1))
-		self.hurtbox_c1.collision_type = HURTBOX_SENSOR_COLLISION_TYPE
-		#self.hurtbox_c1.filter = filter
+			categories=0b1 << (HURTBOX_COLLISION_TYPE-1), \
+			mask=0b1 << (WALL_COLLISION_TYPE-1))
+		self.hurtbox_c1.collision_type = HURTBOX_COLLISION_TYPE
+		self.hurtbox_c1.filter = filter
 		#self.hurtbox_c1.sensor = True
 		self.hurtbox_c2 = pymunk.Circle(self.hurtbox_body, HURTBOX_CAPSULE_RADIUS, offset=(0, -HURTBOX_CAPSULE_STRETCH_LENGTH*0.5))
-		#self.hurtbox_c2.filter = filter
+		self.hurtbox_c2.collision_type = HURTBOX_COLLISION_TYPE
+		self.hurtbox_c2.filter = filter
 		#self.hurtbox_c2.sensor = True
-		self.hurtbox_c2.collision_type = HURTBOX_SENSOR_COLLISION_TYPE
 		self.hurtbox_box = pymunk.Poly.create_box(self.hurtbox_body, (2*HURTBOX_CAPSULE_RADIUS, HURTBOX_CAPSULE_STRETCH_LENGTH))
-		self.hurtbox_box.collision_type = HURTBOX_SENSOR_COLLISION_TYPE
-		#self.hurtbox_c2.filter = filter
+		self.hurtbox_box.collision_type = HURTBOX_COLLISION_TYPE
+		self.hurtbox_c2.filter = filter
 		#self.hurtbox_c2.sensor = True
+		self.feet = create_pymunk_box(self.hurtbox_body, 
+			(-HURTBOX_CAPSULE_RADIUS, -HURTBOX_CAPSULE_RADIUS-HURTBOX_CAPSULE_STRETCH_LENGTH*0.5), 
+			(HURTBOX_CAPSULE_RADIUS, -HURTBOX_CAPSULE_STRETCH_LENGTH*0.5)
+		)
+		self.feet.color = (255, 233, 28, 100)
 
-		self.hurtbox_shape = pymunk.Segment(self.hurtbox_body, (HURTBOX_CAPSULE_RADIUS, HURTBOX_CAPSULE_STRETCH_LENGTH), (HURTBOX_CAPSULE_RADIUS, -HURTBOX_CAPSULE_STRETCH_LENGTH), HURTBOX_CAPSULE_RADIUS)
-
-		space.add(self.hurtbox_body, self.hurtbox_c1, self.hurtbox_c2, self.hurtbox_box)
-		#space.add(self.hurtbox_body, self.hurtbox_shape)
+		space.add(self.hurtbox_body, self.hurtbox_c1, self.hurtbox_c2, self.hurtbox_box, self.feet)
 
 		self.midair_jumps_left = 0
 		self.is_grounded = False
@@ -109,11 +119,13 @@ class GameState():
 		self.fighter = Fighter(self.physics_sim, (30,100))
 
 		wall_body = pymunk.Body(body_type=pymunk.Body.STATIC)
-		p1 = pymunk.Segment(wall_body, (20, 30), (100, 30), 1)
-		p1.collision_type = PLATFORM_COLLISION_TYPE
-		self.physics_sim.add(wall_body, p1)
+		p1 = create_pymunk_box(wall_body, (20, 10), (100,30))
+		p2 = create_pymunk_box(wall_body, (20, 10), (10,100))
+		p3 = create_pymunk_box(wall_body, (90, 30), (100,100))
+		p1.collision_type = WALL_COLLISION_TYPE
+		self.physics_sim.add(wall_body, p1, p2, p3)
 
-		self.handler = self.physics_sim.add_collision_handler(FIGHTER_COLLISION_TYPE, PLATFORM_COLLISION_TYPE)
+		self.handler = self.physics_sim.add_collision_handler(HURTBOX_COLLISION_TYPE, WALL_COLLISION_TYPE)
 		self.handler.begin = fighter_platform_collision_handler
 		self.gravity_enabled = True
 
@@ -127,19 +139,21 @@ def step_game(_):
 	dx = 50 * ((float)((game_state.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_LEFT or game_state.input[INPUT_MOVE_LEFT] == False) and game_state.input[INPUT_MOVE_RIGHT]) \
 		- \
 		(float)((game_state.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_RIGHT or game_state.input[INPUT_MOVE_RIGHT] == False) and game_state.input[INPUT_MOVE_LEFT]))
-	game_state.fighter.hurtbox_body.velocity = (dx, max(game_state.fighter.hurtbox_body.velocity.y, -FALL_VELOCITY))
+	game_state.fighter.feet.surface_velocity = (dx, 0)
+	game_state.fighter.hurtbox_body.velocity = dx, max(game_state.fighter.hurtbox_body.velocity.y, -FALL_VELOCITY)
 	game_state.fighter.compute_grounding()
 	if (game_state.prev_input[INPUT_JUMP] == False and game_state.input[INPUT_JUMP] and
 		(game_state.fighter.is_grounded or game_state.fighter.midair_jumps_left > 0)
 		):
 		print("JUMPING")
-		#only subtract midair jumps if not fighter is not grounded
+		#only subtract midair jumps if fighter is not grounded
 		game_state.fighter.midair_jumps_left -= int(not game_state.fighter.is_grounded)
 		vel = game_state.fighter.hurtbox_body.velocity
 		game_state.fighter.hurtbox_body.velocity = (vel.x, 0)
 		jump_v = math.sqrt(2.0 * JUMP_HEIGHT * abs(game_state.physics_sim.gravity.y))
 		impulse = (0, game_state.fighter.hurtbox_body.mass * jump_v)
 		game_state.fighter.hurtbox_body.apply_impulse_at_local_point(impulse)
+
 	game_state.physics_sim.step(TIMESTEP)
 
 	game_state.prev_input = game_state.input.copy()
