@@ -150,15 +150,15 @@ def main():
     feet = pymunk.Circle(body, 10, (0, -5))
     # Since we use the debug draw we need to hide these circles. To make it
     # easy we just set their color to black.
-    feet.color = 0, 0, 0, 0
-    head.color = 0, 0, 0, 0
-    head2.color = 0, 0, 0, 0
+    feet.color = 128, 0, 0, 64
+    head.color = 128, 0, 0, 64
+    head2.color = 128, 0, 0, 64
     mask = pymunk.ShapeFilter.ALL_MASKS() ^ passthrough.filter.categories
     sf = pymunk.ShapeFilter(mask=mask)
     head.filter = sf
     head2.filter = sf
     feet.collision_type = 1
-    feet.ignore_draw = head.ignore_draw = head2.ignore_draw = True
+    #feet.ignore_draw = head.ignore_draw = head2.ignore_draw = True
 
     space.add(body, head, feet, head2)
     direction = 1
@@ -298,7 +298,7 @@ def main():
             animation_offset = 32 * 0
         position = body.position + (-16, 28)
         p = pymunk.pygame_util.to_pygame(position, screen)
-        screen.blit(img, p, (animation_offset, direction_offset, 32, 48))
+        #screen.blit(img, p, (animation_offset, direction_offset, 32, 48))
 
         # Did we land?
         if abs(grounding["impulse"].y) / body.mass > 200 and not landed_previous:
