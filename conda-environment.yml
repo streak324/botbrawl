@@ -1,0 +1,4 @@
+name: learnml
+channels:
+  - defaults
+prefix: C:\Users\Andrew\anaconda3\envs\learnml\envs\learnml
