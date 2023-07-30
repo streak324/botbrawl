@@ -48,11 +48,11 @@ FALL_VELOCITY = 60.0
 
 
 wall_collision_filter = pymunk.ShapeFilter( \
-	categories=0b1 << (HURTBOX_COLLISION_TYPE-1), \
-	mask=0b1 << (WALL_COLLISION_TYPE-1))
+	categories=0b1 << (WALL_COLLISION_TYPE-1), \
+	mask=0b1 << (FEET_COLLISION_TYPE-1))
 
-def create_pymunk_box(body: pymunk.Body, min: tuple[float,float], max: tuple[float,float]):
-	return pymunk.Poly(body, [min, (max[0], min[1]), max, (min[0], max[1])])
+def create_pymunk_box(body: pymunk.Body, min: tuple[float,float], max: tuple[float,float], radus: float = 0):
+	return pymunk.Poly(body, [min, (max[0], min[1]), max, (min[0], max[1])], radius=0)
 
 class Fighter():
 	def __init__(self, space: pymunk.Space, center: tuple[float, float]):
@@ -60,24 +60,32 @@ class Fighter():
 		self.body = pymunk.Body(mass=5, moment=float("inf"))
 		self.body._set_position(center)
 		self.hurtbox_c1 = pymunk.Circle(self.body, HURTBOX_CAPSULE_RADIUS, offset=(0, HURTBOX_CAPSULE_STRETCH_LENGTH*0.5))
-		filter = pymunk.ShapeFilter( \
+		hurtbox_filter = pymunk.ShapeFilter( \
 			categories=0b1 << (HURTBOX_COLLISION_TYPE-1), \
+			mask=0b1 << (HITBOX_SENSOR_COLLISION_TYPE-1))
+
+		feet_wall_filter = pymunk.ShapeFilter( \
+			categories=0b1 << (FEET_COLLISION_TYPE-1), \
 			mask=0b1 << (WALL_COLLISION_TYPE-1))
+
 		self.hurtbox_c1.collision_type = HURTBOX_COLLISION_TYPE
-		self.hurtbox_c1.filter = filter
-		#self.hurtbox_c1.sensor = True
+		self.hurtbox_c1.filter = hurtbox_filter
+		self.hurtbox_c1.sensor = True
 		self.hurtbox_c2 = pymunk.Circle(self.body, HURTBOX_CAPSULE_RADIUS, offset=(0, -HURTBOX_CAPSULE_STRETCH_LENGTH*0.5))
 		self.hurtbox_c2.collision_type = HURTBOX_COLLISION_TYPE
-		self.hurtbox_c2.filter = filter
-		#self.hurtbox_c2.sensor = True
+		self.hurtbox_c2.filter = hurtbox_filter
+		self.hurtbox_c2.sensor = True
 		self.hurtbox_box = pymunk.Poly.create_box(self.body, (2*HURTBOX_CAPSULE_RADIUS, HURTBOX_CAPSULE_STRETCH_LENGTH))
 		self.hurtbox_box.collision_type = HURTBOX_COLLISION_TYPE
-		self.hurtbox_c2.filter = filter
-		#self.hurtbox_c2.sensor = True
-		self.feet = create_pymunk_box(self.body, 
+		self.hurtbox_box.filter = hurtbox_filter
+		self.hurtbox_box.sensor = True
+
+		self.feet = create_pymunk_box(self.body,
 			(-HURTBOX_CAPSULE_RADIUS, -HURTBOX_CAPSULE_RADIUS-HURTBOX_CAPSULE_STRETCH_LENGTH*0.5-0.5), 
-			(HURTBOX_CAPSULE_RADIUS, -HURTBOX_CAPSULE_STRETCH_LENGTH*0.5-0.5)
+			(HURTBOX_CAPSULE_RADIUS, HURTBOX_CAPSULE_STRETCH_LENGTH*0.5+HURTBOX_CAPSULE_RADIUS*0.5)
 		)
+		self.feet.collision_type = FEET_COLLISION_TYPE
+		self.feet.filter = feet_wall_filter
 		self.feet.friction = 1
 		self.feet.color = (255, 233, 28, 100)
 
@@ -111,6 +119,14 @@ class Fighter():
 			self.is_grounded = True
 			self.midair_jumps_left = TOTAL_MIDAIR_JUMPS_ALLOWED
 
+
+# Set up collision handler
+def post_solve_separate_fighter_from_wall(arbiter, space, data):
+	impulse = arbiter.total_impulse
+	print(impulse)
+	return True
+
+
 class GameState():
 	def __init__(self):
 		self.physics_sim = pymunk.Space()
@@ -122,23 +138,22 @@ class GameState():
 		wall_body = pymunk.Body(body_type=pymunk.Body.STATIC)
 		p1 = create_pymunk_box(wall_body, (20, 10), (100,30))
 		p1.collision_type = WALL_COLLISION_TYPE
+		p1.filter = wall_collision_filter
 		p1.friction = 1
 		p2 = create_pymunk_box(wall_body, (20, 10), (10,100))
 		p2.collision_type = WALL_COLLISION_TYPE
-		p2.friction = 1
+		p2.filter = wall_collision_filter
+		#p2.friction = 1
 		p3 = create_pymunk_box(wall_body, (90, 30), (100,100))
 		p3.collision_type = WALL_COLLISION_TYPE
-		p3.friction = 1
+		p3.filter = wall_collision_filter
+		#p3.friction = 1
 		self.physics_sim.add(wall_body, p1, p2, p3)
 
-		self.handler = self.physics_sim.add_collision_handler(HURTBOX_COLLISION_TYPE, WALL_COLLISION_TYPE)
-		self.handler.begin = fighter_platform_collision_handler
+		self.handler = self.physics_sim.add_collision_handler(FEET_COLLISION_TYPE, WALL_COLLISION_TYPE)
+		self.handler.post_solve = post_solve_separate_fighter_from_wall
 		self.gravity_enabled = True
 
-def fighter_platform_collision_handler(arb: pymunk.Arbiter, space: pymunk.Space, data: any) -> bool:
-	print("Hi!")
-	return True
-	
 game_state = GameState()
 
 def step_game(_):
@@ -165,7 +180,7 @@ def step_game(_):
 
 	game_state.prev_input = game_state.input.copy()
 
-game_window = pyglet.window.Window(SCREEN_WIDTH, SCREEN_HEIGHT, fullscreen=True)
+game_window = pyglet.window.Window(fullscreen=True, style=pyglet.window.Window.WINDOW_STYLE_BORDERLESS)
 physics_batch = pyglet.graphics.Batch()
 @game_window.event
 def on_draw():

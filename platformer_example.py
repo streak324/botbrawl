@@ -51,6 +51,8 @@ HEAD_FRICTION = 0.7
 
 PLATFORM_SPEED = 1
 
+def create_pymunk_box(body: pymunk.Body, min: tuple[float,float], max: tuple[float,float], radus: float = 0):
+	return pymunk.Poly(body, [min, (max[0], min[1]), max, (min[0], max[1])], radius=0)
 
 def main():
 
@@ -70,6 +72,7 @@ def main():
 
     ### Physics stuff
     space = pymunk.Space()
+    space.iterations = 10
     space.gravity = Vec2d(0, -1000)
     pymunk.pygame_util.positive_y_is_up = True
     draw_options = pymunk.pygame_util.DrawOptions(screen)
@@ -83,7 +86,7 @@ def main():
         pymunk.Segment(space.static_body, (375, 50), (680, 50), 3),
         pymunk.Segment(space.static_body, (680, 50), (680, 370), 3),
         pymunk.Segment(space.static_body, (680, 370), (10, 370), 3),
-        pymunk.Segment(space.static_body, (10, 370), (10, 50), 3),
+        create_pymunk_box(space.static_body, (10, 50), (15, 370)),
     ]
     static[1].color = pygame.Color("red")
     static[2].color = pygame.Color("green")
@@ -145,9 +148,12 @@ def main():
     body = pymunk.Body(5, float("inf"))
     body.position = 100, 100
 
-    head = pymunk.Circle(body, 10, (0, 5))
-    head2 = pymunk.Circle(body, 10, (0, 13))
-    feet = pymunk.Circle(body, 10, (0, -5))
+    head = create_pymunk_box(body, (-5,0), (5,5))
+    #head = pymunk.Circle(body, 10, (0, 5))
+    head2 = create_pymunk_box(body, (-5,8), (5,18))
+    #head2 = pymunk.Circle(body, 10, (0, 13))
+    feet = create_pymunk_box(body, (-5,-10), (5,0))
+    #feet = pymunk.Circle(body, 10, (0, -5))
     # Since we use the debug draw we need to hide these circles. To make it
     # easy we just set their color to black.
     feet.color = 128, 0, 0, 64
@@ -302,7 +308,7 @@ def main():
 
         # Did we land?
         if abs(grounding["impulse"].y) / body.mass > 200 and not landed_previous:
-            sound.play()
+            #sound.play()
             landing = {"p": grounding["position"], "n": 5}
             landed_previous = True
         else:
