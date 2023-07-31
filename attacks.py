@@ -1,0 +1,4 @@
+#using frames data collected from brawlhalla legend Orion
+NEUTRAL_LIGHT_HIT_STARTUP_FRAMES = 5
+NEUTRAL_LIGHT_HIT_RECOVERY_FRAMES = 22
+NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES = 0
