@@ -5,6 +5,8 @@ import pyglet
 import pymunk.pyglet_util
 from pymunk.vec2d import Vec2d
 
+import consts
+
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 SCREEN_TITLE = "Starting Template"
@@ -35,9 +37,12 @@ JUMP_HEIGHT = 15
 PIXELS_PER_WORLD_UNITS = 10
 
 #world units
-HURTBOX_CAPSULE_RADIUS = 72 / PIXELS_PER_WORLD_UNITS
+HURTBOX_WIDTH = 14.4
 #world units
-HURTBOX_CAPSULE_STRETCH_LENGTH= 16 / PIXELS_PER_WORLD_UNITS
+HURTBOX_HEIGHT = 16
+
+FIGHTER_COLLIDER_WIDTH = 8
+FIGHTER_COLLIDER_HEIGHT = 15
 
 HURTBOX_COLOR = (171, 174, 105, 128)
 
@@ -45,9 +50,9 @@ FRAMES_PER_SECOND = 60
 TIMESTEP = 1/FRAMES_PER_SECOND
 
 HURTBOX_COLLISION_TYPE = 1
-HITBOX_SENSOR_COLLISION_TYPE = 2
+HITBOX_COLLISION_TYPE = 2
 WALL_COLLISION_TYPE = 3
-FEET_COLLISION_TYPE = 4
+FIGHTER_WALL_COLLIDER_COLLISION_TYPE = 4
 
 FALL_VELOCITY = 60.0
 
@@ -56,70 +61,114 @@ DEVICE_CONTROLLED_FIGHTER_INDEX = 0
 
 wall_collision_filter = pymunk.ShapeFilter( \
 	categories=0b1 << (WALL_COLLISION_TYPE-1), \
-	mask=0b1 << (FEET_COLLISION_TYPE-1))
+	mask=0b1 << (FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1))
 
 def create_pymunk_box(body: pymunk.Body, min: tuple[float,float], max: tuple[float,float], radus: float = 0):
 	return pymunk.Poly(body, [min, (max[0], min[1]), max, (min[0], max[1])], radius=0)
 
 
-def add_capsule_shape(body: pymunk.Body, offset: tuple[float,float], radius: float, stretch_length: float) -> tuple[pymunk.Shape] :
-	c1 = pymunk.Circle(body, radius, offset=(offset[0], offset[1] + stretch_length*0.5))
-	c2 = pymunk.Circle(body, radius, offset=(offset[0], offset[1] + -stretch_length*0.5))
-	box = create_pymunk_box(body, 
-		(offset[0] - HURTBOX_CAPSULE_RADIUS, offset[1] - HURTBOX_CAPSULE_STRETCH_LENGTH*0.5), 
-		(offset[0] + HURTBOX_CAPSULE_RADIUS, offset[1] + HURTBOX_CAPSULE_STRETCH_LENGTH*0.5))
-	return (c1, c2, box)
+def add_capsule_shape(body: pymunk.Body, offset: tuple[float,float], width: float, height: float) -> tuple[pymunk.Shape] :
+	if width == height:
+		return (pymunk.Circle(body, width, offset))
+	if width > height:
+		stretch_length = width - height
+		c1 = pymunk.Circle(body, height*0.5, offset=(offset[0] - stretch_length*0.5, offset[1]))
+		c2 = pymunk.Circle(body, height*0.5, offset=(offset[0] + stretch_length*0.5, offset[1]))
+		box = create_pymunk_box(body, 
+			(offset[0] - stretch_length*0.5, offset[1] - height*0.5), 
+			(offset[0] + stretch_length*0.5, offset[1] + height*0.5))
+		return (c1,c2,box)
+	else:
+		stretch_length = height - width
+		c1 = pymunk.Circle(body, width*0.5, offset=(offset[0], offset[1] - stretch_length*0.5))
+		c2 = pymunk.Circle(body, width*0.5, offset=(offset[0], offset[1] + stretch_length*0.5))
+		box = create_pymunk_box(body, 
+			(offset[0] - width*0.5, offset[1] - stretch_length*0.5), 
+			(offset[0] + width*0.5, offset[1] + stretch_length*0.5))
+		return (c1, c2, box)
+
+class Hitbox():
+	def __init__(self, shapes: list[pymunk.Shape], active_frames: int, cooldown_frames: int):
+		self.shapes = shapes
+		self.active_frames = active_frames
+		self.cooldown_frames = cooldown_frames
+		self.cooldown_timer = 0
+		self.active_timer = 0
+		self.is_active = False
+	def activate(self, space: pymunk.Space):
+		self.is_active = True
+		self.active_timer = self.active_frames
+		for shape in self.shapes:
+			space.add(shape)
+	def deactivate(self, space: pymunk.Space):
+		self.is_active = False
+		self.cooldown_timer = self.cooldown_frames
+		for shape in self.shapes:
+			space.remove(shape)
 
 class Fighter():
-	def __init__(self, space: pymunk.Space, center: tuple[float, float]):
+	def __init__(self, space: pymunk.Space, center: tuple[float, float], facing = consts.FIGHTER_FACING_LEFT):
 		#hurtbox body is supposed to be the shape of a capsule: 2 circles and 1 rectangle
-		self.input = numpy.zeros(4)
-		self.prev_input = numpy.zeros(4)
+		self.facing = facing
+		self.input = numpy.zeros(8)
+		self.prev_input = numpy.zeros(8)
 		self.body = pymunk.Body(mass=5, moment=float("inf"))
 		self.body._set_position(center)
 		space.add(self.body)
+		self.hitboxes: list[Hitbox] = []
 
 		hurtbox_filter = pymunk.ShapeFilter(
 			categories=0b1 << (HURTBOX_COLLISION_TYPE-1),
-			mask=0b1 << (HITBOX_SENSOR_COLLISION_TYPE-1))
+			mask=0b1 << (HITBOX_COLLISION_TYPE-1))
 
-		feet_wall_filter = pymunk.ShapeFilter(
-			categories=0b1 << (FEET_COLLISION_TYPE-1),
+		wall_collider_filter = pymunk.ShapeFilter(
+			categories=0b1 << (FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1),
 			mask=0b1 << (WALL_COLLISION_TYPE-1))
 
 		hitbox_filter = pymunk.ShapeFilter(
-			categories=0b1 << (HITBOX_SENSOR_COLLISION_TYPE-1), 
+			categories=0b1 << (HITBOX_COLLISION_TYPE-1), 
 			mask=0b1 << (HURTBOX_COLLISION_TYPE))
 
-		hurtbox_shapes = add_capsule_shape(self.body, (0,0), HURTBOX_CAPSULE_RADIUS, HURTBOX_CAPSULE_STRETCH_LENGTH)
+		hurtbox_shapes = add_capsule_shape(self.body, (0,0), HURTBOX_WIDTH, HURTBOX_HEIGHT)
 		for shape in hurtbox_shapes:
 			shape.collision_type = HURTBOX_COLLISION_TYPE 
 			shape.filter = hurtbox_filter
 			shape.sensor = True
 			space.add(shape)
 
-		self.feet = create_pymunk_box(self.body,
-			(-HURTBOX_CAPSULE_RADIUS, -HURTBOX_CAPSULE_RADIUS-HURTBOX_CAPSULE_STRETCH_LENGTH*0.5-0.5), 
-			(HURTBOX_CAPSULE_RADIUS, HURTBOX_CAPSULE_STRETCH_LENGTH*0.5+HURTBOX_CAPSULE_RADIUS*0.5)
+		self.wall_collider = create_pymunk_box(self.body,
+			(-FIGHTER_COLLIDER_WIDTH*0.5, -FIGHTER_COLLIDER_HEIGHT*0.5-1), 
+			(FIGHTER_COLLIDER_WIDTH*0.5, FIGHTER_COLLIDER_HEIGHT*0.5-1)
 		)
-		self.feet.collision_type = FEET_COLLISION_TYPE
-		self.feet.filter = feet_wall_filter
-		self.feet.friction = 1
-		self.feet.color = (255, 233, 28, 100)
+		self.wall_collider.collision_type = FIGHTER_WALL_COLLIDER_COLLISION_TYPE
+		self.wall_collider.filter = wall_collider_filter
+		self.wall_collider.friction = 1
+		self.wall_collider.color = (255, 233, 28, 100)
 
-		space.add(self.feet)
+		space.add(self.wall_collider)
 
-		self.neutral_light_hitbox_shapes = add_capsule_shape(self.body, (0,0), 2, 1)
-		for shape in self.neutral_light_hitbox_shapes:
-			shape.collision_type = HITBOX_SENSOR_COLLISION_TYPE	
+		right_neutral_light_hitbox_shapes = add_capsule_shape(self.body, (12,0), 6, 5)
+		for shape in right_neutral_light_hitbox_shapes:
+			shape.collision_type = HITBOX_COLLISION_TYPE	
 			shape.filter = hitbox_filter
 			shape.sensor = True
-		#space.add(self.neutral_light_hitbox_shapes)
+			shape.color = (128, 0, 0, 255)
+		self.right_neutral_light_hitbox = Hitbox(right_neutral_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
+		self.hitboxes.append(self.right_neutral_light_hitbox)
+
+		left_neutral_light_hitbox_shapes = add_capsule_shape(self.body, (-12,0), 6, 5)
+		for shape in left_neutral_light_hitbox_shapes:
+			shape.collision_type = HITBOX_COLLISION_TYPE	
+			shape.filter = hitbox_filter
+			shape.sensor = True
+			shape.color = (128, 0, 0, 255)
+		self.left_neutral_light_hitbox = Hitbox(left_neutral_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
+		self.hitboxes.append(self.left_neutral_light_hitbox)
 
 		self.midair_jumps_left = 0
 		self.is_grounded = False
 
-		#time have to wait before doing a new action (dodge, move, hit). should not be 
+		#number of frames fighter must wait before attempting a new action (dodge, move, hit).
 		self.recover_cooldown = 0
 
 	def compute_grounding(self):
@@ -147,11 +196,13 @@ class Fighter():
 			self.is_grounded = True
 			self.midair_jumps_left = TOTAL_MIDAIR_JUMPS_ALLOWED
 
+	def is_input_tapped(self, input_index: int) -> bool:
+		return self.input[input_index] and self.prev_input[input_index] == False
+
 
 # Set up collision handler
 def post_solve_separate_fighter_from_wall(arbiter, space, data):
 	impulse = arbiter.total_impulse
-	print(impulse)
 	return True
 
 class GameState():
@@ -175,12 +226,9 @@ class GameState():
 		#p3.friction = 1
 		self.physics_sim.add(wall_body, p1, p2, p3)
 
-		self.handler = self.physics_sim.add_collision_handler(FEET_COLLISION_TYPE, WALL_COLLISION_TYPE)
+		self.handler = self.physics_sim.add_collision_handler(FIGHTER_WALL_COLLIDER_COLLISION_TYPE, WALL_COLLISION_TYPE)
 		self.handler.post_solve = post_solve_separate_fighter_from_wall
 		self.gravity_enabled = True
-
-	def is_input_tapped(self: Fighter, input_index: int) -> bool:
-		return self.input[input_index] and self.prev_input[input_index] == False
 
 game_state = GameState()
 
@@ -204,10 +252,22 @@ def step_game(_):
 			y_force = fighter.body.mass * jump_v
 
 		fighter.body.apply_impulse_at_local_point((dx, y_force))
-			#if (fighter.is_input_tapped(INPUT_LIGHT_HIT)):
-			#	fighter.				
 
-			#input should be copied into previous input AFTER all logic needing input has been processed
+		is_doing_action = False
+		for hitbox in fighter.hitboxes:
+			if hitbox.is_active:
+				is_doing_action = True
+				hitbox.active_timer = max(hitbox.active_timer - 1, 0)
+				if hitbox.active_timer <= 0:
+					hitbox.deactivate(game_state.physics_sim)
+			else:
+				hitbox.cooldown_timer = max(hitbox.cooldown_timer - 1, 0)
+
+		fighter.recover_cooldown = max(fighter.recover_cooldown-1, 0)
+		if fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_cooldown == 0 and is_doing_action == False and fighter.right_neutral_light_hitbox.cooldown_timer == 0:
+			fighter.recover_cooldown = consts.NEUTRAL_LIGHT_HIT_RECOVERY_FRAMES
+			fighter.right_neutral_light_hitbox.activate(game_state.physics_sim)
+		#input should be copied into previous input AFTER all logic needing input has been processed
 		fighter.prev_input = fighter.input.copy()
 
 
@@ -263,6 +323,14 @@ def on_key_release(key, modifiers):
 		fighter.input[INPUT_MOVE_RIGHT] = False
 	if key == pyglet.window.key.UP:
 		fighter.input[INPUT_JUMP] = False
+	if key == pyglet.window.key.Z:
+		fighter.input[INPUT_DODGE] = False
+	if key == pyglet.window.key.X: 
+		fighter.input[INPUT_HEAVY_HIT] = False
+	if key == pyglet.window.key.C:
+		fighter.input[INPUT_LIGHT_HIT] = False
+	if key == pyglet.window.key.V:
+		fighter.input[INPUT_THROW] = False
 
 if __name__ == "__main__":
 	pyglet.clock.schedule_interval(step_game, TIMESTEP)
