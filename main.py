@@ -19,12 +19,11 @@ SCREEN_TITLE = "Starting Template"
 
 INPUT_MOVE_LEFT = 0
 INPUT_MOVE_RIGHT = 1
-INPUT_MOVE_SIDE_PRECEDENCE = 2
-INPUT_JUMP = 3
-INPUT_DODGE = 4
-INPUT_HEAVY_HIT = 5
-INPUT_LIGHT_HIT = 6
-INPUT_THROW = 7
+INPUT_JUMP = 2
+INPUT_DODGE = 3
+INPUT_HEAVY_HIT = 4
+INPUT_LIGHT_HIT = 5
+INPUT_THROW = 6
 
 TOTAL_MIDAIR_JUMPS_ALLOWED = 2
 
@@ -88,28 +87,39 @@ def add_capsule_shape(body: pymunk.Body, offset: tuple[float,float], width: floa
 		return (c1, c2, box)
 
 class Hitbox():
-	def __init__(self, shapes: list[pymunk.Shape], active_frames: int, cooldown_frames: int):
-		self.shapes = shapes
+	def __init__(self, left_shapes: list[pymunk.Shape], right_shapes: list[pymunk.Shape], active_frames: int, cooldown_frames: int):
+		self.left_shapes = left_shapes
+		self.right_shapes = right_shapes
+		self.side_facing = 0
 		self.active_frames = active_frames
 		self.cooldown_frames = cooldown_frames
 		self.cooldown_timer = 0
 		self.active_timer = 0
 		self.is_active = False
-	def activate(self, space: pymunk.Space):
+	def activate(self, side_facing: int, space: pymunk.Space):
 		self.is_active = True
 		self.active_timer = self.active_frames
-		for shape in self.shapes:
-			space.add(shape)
+		self.side_facing = side_facing
+		if side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+			for shape in self.left_shapes:
+				space.add(shape)
+		else:
+			for shape in self.right_shapes:
+				space.add(shape)
 	def deactivate(self, space: pymunk.Space):
 		self.is_active = False
 		self.cooldown_timer = self.cooldown_frames
-		for shape in self.shapes:
-			space.remove(shape)
+		if self.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+			for shape in self.left_shapes:
+				space.remove(shape)
+		else:
+			for shape in self.right_shapes:
+				space.remove(shape)
 
 class Fighter():
-	def __init__(self, space: pymunk.Space, center: tuple[float, float], facing = consts.FIGHTER_FACING_LEFT):
+	def __init__(self, space: pymunk.Space, center: tuple[float, float], side_facing = consts.FIGHTER_SIDE_FACING_LEFT):
 		#hurtbox body is supposed to be the shape of a capsule: 2 circles and 1 rectangle
-		self.facing = facing
+		self.side_facing = side_facing
 		self.input = numpy.zeros(8)
 		self.prev_input = numpy.zeros(8)
 		self.body = pymunk.Body(mass=5, moment=float("inf"))
@@ -147,23 +157,15 @@ class Fighter():
 
 		space.add(self.wall_collider)
 
-		right_neutral_light_hitbox_shapes = add_capsule_shape(self.body, (12,0), 6, 5)
-		for shape in right_neutral_light_hitbox_shapes:
-			shape.collision_type = HITBOX_COLLISION_TYPE	
-			shape.filter = hitbox_filter
-			shape.sensor = True
-			shape.color = (128, 0, 0, 255)
-		self.right_neutral_light_hitbox = Hitbox(right_neutral_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
-		self.hitboxes.append(self.right_neutral_light_hitbox)
-
 		left_neutral_light_hitbox_shapes = add_capsule_shape(self.body, (-12,0), 6, 5)
-		for shape in left_neutral_light_hitbox_shapes:
+		right_neutral_light_hitbox_shapes = add_capsule_shape(self.body, (12,0), 6, 5)
+		for shape in right_neutral_light_hitbox_shapes + left_neutral_light_hitbox_shapes:
 			shape.collision_type = HITBOX_COLLISION_TYPE	
 			shape.filter = hitbox_filter
 			shape.sensor = True
 			shape.color = (128, 0, 0, 255)
-		self.left_neutral_light_hitbox = Hitbox(left_neutral_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
-		self.hitboxes.append(self.left_neutral_light_hitbox)
+		self.neutral_light_hitbox = Hitbox(left_neutral_light_hitbox_shapes, right_neutral_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
+		self.hitboxes.append(self.neutral_light_hitbox)
 
 		self.midair_jumps_left = 0
 		self.is_grounded = False
@@ -216,7 +218,7 @@ class GameState():
 		p1.collision_type = WALL_COLLISION_TYPE
 		p1.filter = wall_collision_filter
 		p1.friction = 1
-		p2 = create_pymunk_box(wall_body, (20, 10), (10,100))
+		p2 = create_pymunk_box(wall_body, (30, 10), (20,100))
 		p2.collision_type = WALL_COLLISION_TYPE
 		p2.filter = wall_collision_filter
 		#p2.friction = 1
@@ -234,12 +236,16 @@ game_state = GameState()
 
 def step_game(_):
 	for fighter in game_state.fighters:
-		dx = 50 * ((float)((fighter.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_LEFT or fighter.input[INPUT_MOVE_LEFT] == False) and fighter.input[INPUT_MOVE_RIGHT]) \
-			- \
-			(float)((fighter.input[INPUT_MOVE_SIDE_PRECEDENCE] != SIDE_PRECEDENCE_RIGHT or fighter.input[INPUT_MOVE_RIGHT] == False) and fighter.input[INPUT_MOVE_LEFT]))
-		fighter.body.velocity = min(max(-50, fighter.body.velocity.x), 50), max(fighter.body.velocity.y, -FALL_VELOCITY)
+		dx = 0
+		if (fighter.side_facing != consts.FIGHTER_SIDE_FACING_LEFT or fighter.input[INPUT_MOVE_LEFT] == False) and fighter.input[INPUT_MOVE_RIGHT]:
+			fighter.side_facing = consts.FIGHTER_SIDE_FACING_RIGHT
+			dx = 50
+		
+		if (fighter.side_facing != consts.FIGHTER_SIDE_FACING_RIGHT or fighter.input[INPUT_MOVE_RIGHT] == False) and fighter.input[INPUT_MOVE_LEFT]:
+			fighter.side_facing = consts.FIGHTER_SIDE_FACING_LEFT
+			dx = -50
+
 		fighter.compute_grounding()
-		y_force = 0
 		if (fighter.prev_input[INPUT_JUMP] == False and fighter.input[INPUT_JUMP] and
 			(fighter.is_grounded or fighter.midair_jumps_left > 0)
 			):
@@ -250,8 +256,8 @@ def step_game(_):
 			fighter.body.velocity = (vel.x, 0)
 			jump_v = math.sqrt(2.0 * JUMP_HEIGHT * abs(game_state.physics_sim.gravity.y))
 			y_force = fighter.body.mass * jump_v
-
-		fighter.body.apply_impulse_at_local_point((dx, y_force))
+			fighter.body.apply_impulse_at_local_point((0, y_force))
+		fighter.body.velocity = dx, max(fighter.body.velocity.y, -FALL_VELOCITY)
 
 		is_doing_action = False
 		for hitbox in fighter.hitboxes:
@@ -264,9 +270,9 @@ def step_game(_):
 				hitbox.cooldown_timer = max(hitbox.cooldown_timer - 1, 0)
 
 		fighter.recover_cooldown = max(fighter.recover_cooldown-1, 0)
-		if fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_cooldown == 0 and is_doing_action == False and fighter.right_neutral_light_hitbox.cooldown_timer == 0:
+		if fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_cooldown == 0 and is_doing_action == False and fighter.neutral_light_hitbox.cooldown_timer == 0:
 			fighter.recover_cooldown = consts.NEUTRAL_LIGHT_HIT_RECOVERY_FRAMES
-			fighter.right_neutral_light_hitbox.activate(game_state.physics_sim)
+			fighter.neutral_light_hitbox.activate(fighter.side_facing, game_state.physics_sim)
 		#input should be copied into previous input AFTER all logic needing input has been processed
 		fighter.prev_input = fighter.input.copy()
 
@@ -292,10 +298,10 @@ def on_key_press(key, modifiers):
 	fighter: Fighter = game_state.fighters[DEVICE_CONTROLLED_FIGHTER_INDEX]
 	if key == pyglet.window.key.LEFT:
 		fighter.input[INPUT_MOVE_LEFT] = True
-		fighter.input[INPUT_MOVE_SIDE_PRECEDENCE] = SIDE_PRECEDENCE_LEFT
+		fighter.side_facing = consts.FIGHTER_SIDE_FACING_LEFT
 	if key == pyglet.window.key.RIGHT:
 		fighter.input[INPUT_MOVE_RIGHT] = True
-		fighter.input[INPUT_MOVE_SIDE_PRECEDENCE] = SIDE_PRECEDENCE_RIGHT
+		fighter.side_facing = consts.FIGHTER_SIDE_FACING_RIGHT
 	if key == pyglet.window.key.UP:
 		fighter.input[INPUT_JUMP] = True
 	if key == pyglet.window.key.Z:
