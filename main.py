@@ -116,6 +116,89 @@ class Hitbox():
 			for shape in self.right_shapes:
 				space.remove(shape)
 
+# to mimic brawlhalla, every attack move has a sequence of powers, and each power has a sequence of casts.
+class Cast():
+	#active_velocity is supposed to be used during active frames.
+	#TODO: handle variable velocity. example: the last cast in unarmed side light attack, decelerates the speed of the fighter in each frame.
+	def __init__(
+			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox = None, 
+	      	active_velocity: tuple[float, float] = (0,0), is_active_velocity_all_frames: bool = False
+		):
+		self.startup_frames = startup_frames
+		self.active_frames = active_frames
+		self.base_dmg = base_dmg
+		self.var_force = var_force
+		self.fixed_force = fixed_force
+		self.hitbox = hitbox
+		self.active_velocity = active_velocity
+		self.is_active_velocity_all_frames = is_active_velocity_all_frames
+		self.continuous_active_velocity = tuple[float,float]
+		self.is_active = False
+
+class Power():
+	def __init___(self, casts: list[Cast],  cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0):
+		self.casts = casts
+		self.cooldown_frames = cooldown_frames
+		self.fixed_recovery_frames = fixed_recovery_frames
+		self.recovery_frames = recovery_frames
+		self.min_charge_frames = min_charge_frames
+		self.stun_frames = stun_frames
+
+class Attack():
+	def __init__(self, powers: list[Power], start_velocity: (float,float)):
+		self.powers = powers
+		self.is_active = False
+		self.cast_frame = 0
+		self.power_idx = 0
+		self.cast_idx = 0
+		self.recovery_frames = 0
+		self.cooldown_frames = 0
+		self.start_velocity = start_velocity
+		self.cooldown_timer = 0
+		pass
+	def activate(self, space: pymunk.Space) -> (float,float):
+		self.is_active = True
+		self.cast_frame = 0
+		self.power_idx = 0
+		self.cast_idx = 0
+		return self.start_velocity
+	def step(self, side_facing: int, space: pymunk.Space) -> (Cast,Power):
+		self.cast_frame += 1
+		current_power = self.powers[self.power_idx]
+		current_cast = current_power.casts[self.cast_idx]
+		# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
+		if self.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames):
+			self.cast_frame = 0
+			self.cast_idx += 1
+			if current_cast.hitbox != None:
+				if side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+					for shape in current_cast.hitbox.left_shapes:
+						space.remove(shape)
+				elif side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
+					for shape in current_cast.hitbox.right_shapes:
+						space.remove(shape)
+			if self.cast_idx >= len(current_power.casts):
+				self.cast_idx = 0
+				self.power_idx += 1
+				if self.power_idx >= len(self.powers):
+					self.power_dx = 0
+					self.is_active = False
+					return (0,0)
+
+			return self.step(side_facing, space)
+
+		self.recovery_frames += current_power
+		if self.cast_frame >= current_cast.startup_frames and current_cast.is_active == False:
+			current_cast.is_active = True
+			if side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+				for shape in current_cast.hitbox.left_shapes:
+					space.add(shape)
+			elif side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
+				for shape in current_cast.hitbox.right_shapes:
+					space.add(shape)
+
+		return current_cast, current_power
+
 class Fighter():
 	def __init__(self, space: pymunk.Space, center: tuple[float, float], side_facing = consts.FIGHTER_SIDE_FACING_LEFT):
 		#hurtbox body is supposed to be the shape of a capsule: 2 circles and 1 rectangle
@@ -171,8 +254,19 @@ class Fighter():
 
 		self.neutral_light_hitbox = Hitbox(left_neutral_light_hitbox_shapes, right_neutral_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
 		self.side_light_hitbox = Hitbox(left_side_light_hitbox_shapes, right_side_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
+
+		self.side_light_attack = Attack([
+			Power([
+				Cast(startup_frames=2, active_frames=2, active_velocity=(2,0)), 
+				Cast(startup_frames=3, active_frames=2, active_velocity=(4,2)),
+				Cast(startup_frames=1, active_frames=4, active_velocity=(4,0), is_active_velocity_all_frames=True, base_dmg = 13, var_force=20, fixed_force=80)],
+			cooldown = 10, stun_time = 18), 
+			Power([Cast(startup_frames=0, active_frames=1, active_velocity=(4,0))], fixed_recovery = 2, recovery_frames = 18)], 
+			(1,0)
+		)
+
 		self.hitboxes.append(self.neutral_light_hitbox)
-		self.hitboxes.append(self.side_light_hitbox)
+		self.hitboxes.append(self.neutral_light_hitbox)
 
 		self.midair_jumps_left = 0
 		self.is_grounded = False
