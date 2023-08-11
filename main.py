@@ -136,13 +136,14 @@ class Cast():
 		self.is_active = False
 
 class Power():
-	def __init___(self, casts: list[Cast],  cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0):
+	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0):
 		self.casts = casts
 		self.cooldown_frames = cooldown_frames
 		self.fixed_recovery_frames = fixed_recovery_frames
 		self.recovery_frames = recovery_frames
 		self.min_charge_frames = min_charge_frames
 		self.stun_frames = stun_frames
+		self.is_active = False
 
 class Attack():
 	def __init__(self, powers: list[Power], start_velocity: (float,float)):
@@ -151,53 +152,75 @@ class Attack():
 		self.cast_frame = 0
 		self.power_idx = 0
 		self.cast_idx = 0
-		self.recovery_frames = 0
-		self.cooldown_frames = 0
 		self.start_velocity = start_velocity
 		self.cooldown_timer = 0
+		self.side_facing = 0
 		pass
-	def activate(self, space: pymunk.Space) -> (float,float):
-		self.is_active = True
-		self.cast_frame = 0
-		self.power_idx = 0
-		self.cast_idx = 0
-		return self.start_velocity
-	def step(self, side_facing: int, space: pymunk.Space) -> (Cast,Power):
-		self.cast_frame += 1
-		current_power = self.powers[self.power_idx]
-		current_cast = current_power.casts[self.cast_idx]
-		# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
-		if self.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames):
-			self.cast_frame = 0
-			self.cast_idx += 1
-			if current_cast.hitbox != None:
-				if side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
-					for shape in current_cast.hitbox.left_shapes:
-						space.remove(shape)
-				elif side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
-					for shape in current_cast.hitbox.right_shapes:
-						space.remove(shape)
-			if self.cast_idx >= len(current_power.casts):
-				self.cast_idx = 0
-				self.power_idx += 1
-				if self.power_idx >= len(self.powers):
-					self.power_dx = 0
-					self.is_active = False
-					return (0,0)
 
-			return self.step(side_facing, space)
+def activate_attack(attack: Attack, side_facing: int) -> (float,float):
+	attack.is_active = True
+	attack.cast_frame = 0
+	attack.power_idx = 0
+	attack.cast_idx = 0
+	attack.side_facing = side_facing
+	for p in attack.powers:
+		p.is_active = False
+		for c in p.casts:
+			c.is_active = False
+	return attack.start_velocity
 
-		self.recovery_frames += current_power
-		if self.cast_frame >= current_cast.startup_frames and current_cast.is_active == False:
-			current_cast.is_active = True
-			if side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+class StepAttackResults():
+	def __init__(self, is_active: bool, recover_frames: int):
+		self.is_active = is_active
+		self.recover_frames = recover_frames
+
+def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
+	if attack.is_active == False:
+		attack.cooldown_timer = max(attack.cooldown_timer - 1, 0)
+		return StepAttackResults(False, 0)
+
+	attack.cast_frame += 1
+	current_power = attack.powers[attack.power_idx]
+	current_cast = current_power.casts[attack.cast_idx]
+	# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
+	if attack.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames):
+		print(attack.cast_frame, max(current_cast.startup_frames-1, 0) + current_cast.active_frames)
+		attack.cast_frame = 0
+		attack.cast_idx += 1
+		if current_cast.hitbox != None:
+			if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+				for shape in current_cast.hitbox.left_shapes:
+					space.remove(shape)
+			elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
+				for shape in current_cast.hitbox.right_shapes:
+					space.remove(shape)
+		if attack.cast_idx >= len(current_power.casts):
+			attack.cast_idx = 0
+			attack.power_idx += 1
+			if attack.power_idx >= len(attack.powers):
+				attack.power_idx = 0
+				attack.is_active = False
+				return StepAttackResults(False, 0)
+
+		return step_attack(attack, space)
+
+	recovery_frames = 0
+	if current_power.is_active == False:
+		current_power.is_active = True
+		recovery_frames = current_power.recovery_frames
+		attack.cooldown_timer = 0
+
+	if attack.cast_frame >= current_cast.startup_frames and current_cast.is_active == False:
+		current_cast.is_active = True
+		if current_cast.hitbox != None:
+			if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 				for shape in current_cast.hitbox.left_shapes:
 					space.add(shape)
-			elif side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
+			elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
 				for shape in current_cast.hitbox.right_shapes:
 					space.add(shape)
 
-		return current_cast, current_power
+	return StepAttackResults(True, recovery_frames)
 
 class Fighter():
 	def __init__(self, space: pymunk.Space, center: tuple[float, float], side_facing = consts.FIGHTER_SIDE_FACING_LEFT):
@@ -208,7 +231,7 @@ class Fighter():
 		self.body = pymunk.Body(mass=5, moment=float("inf"))
 		self.body._set_position(center)
 		space.add(self.body)
-		self.hitboxes: list[Hitbox] = []
+		self.attacks: list[Attack] = []
 
 		hurtbox_filter = pymunk.ShapeFilter(
 			categories=0b1 << (HURTBOX_COLLISION_TYPE-1),
@@ -240,39 +263,39 @@ class Fighter():
 
 		space.add(self.wall_collider)
 
-		left_neutral_light_hitbox_shapes = add_capsule_shape(self.body, (-12,0), 6, 5)
-		right_neutral_light_hitbox_shapes = add_capsule_shape(self.body, (12,0), 6, 5)
-
 		left_side_light_hitbox_shapes = add_capsule_shape(self.body, (-0.5*HURTBOX_WIDTH,-1),HURTBOX_WIDTH,5)
 		right_side_light_hitbox_shapes = add_capsule_shape(self.body, (0.5*HURTBOX_WIDTH,-1),HURTBOX_WIDTH,5)
 
-		for shape in right_neutral_light_hitbox_shapes + left_neutral_light_hitbox_shapes + left_side_light_hitbox_shapes + right_side_light_hitbox_shapes:
+		for shape in left_side_light_hitbox_shapes + right_side_light_hitbox_shapes:
 			shape.collision_type = HITBOX_COLLISION_TYPE	
 			shape.filter = hitbox_filter
 			shape.sensor = True
 			shape.color = (128, 0, 0, 255)
 
-		self.neutral_light_hitbox = Hitbox(left_neutral_light_hitbox_shapes, right_neutral_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
-		self.side_light_hitbox = Hitbox(left_side_light_hitbox_shapes, right_side_light_hitbox_shapes, consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES)
-
 		self.side_light_attack = Attack([
 			Power([
-				Cast(startup_frames=2, active_frames=2, active_velocity=(2,0)), 
-				Cast(startup_frames=3, active_frames=2, active_velocity=(4,2)),
-				Cast(startup_frames=1, active_frames=4, active_velocity=(4,0), is_active_velocity_all_frames=True, base_dmg = 13, var_force=20, fixed_force=80)],
-			cooldown = 10, stun_time = 18), 
-			Power([Cast(startup_frames=0, active_frames=1, active_velocity=(4,0))], fixed_recovery = 2, recovery_frames = 18)], 
+				Cast(startup_frames=2, active_frames=2, active_velocity=(10,0)), 
+				Cast(startup_frames=3, active_frames=2, active_velocity=(20,10)),
+				Cast(
+					startup_frames=1, active_frames=4, active_velocity=(20,0), is_active_velocity_all_frames=True, base_dmg = 13, var_force=20, fixed_force=80,
+					hitbox=Hitbox(
+						left_side_light_hitbox_shapes, right_side_light_hitbox_shapes, 
+						consts.NEUTRAL_LIGHT_HIT_ACTIVE_FRAMES, consts.NEUTRAL_LIGHT_HIT_COOLDOWN_FRAMES
+					),
+				)
+			],
+			cooldown_frames = 10, stun_frames = 18), 
+			Power([Cast(startup_frames=0, active_frames=1, active_velocity=(20,0))], fixed_recovery_frames = 2, recovery_frames = 18)], 
 			(1,0)
 		)
 
-		self.hitboxes.append(self.neutral_light_hitbox)
-		self.hitboxes.append(self.neutral_light_hitbox)
+		self.attacks.append(self.side_light_attack)
 
 		self.midair_jumps_left = 0
 		self.is_grounded = False
 
 		#number of frames fighter must wait before attempting a new action (dodge, move, hit).
-		self.recover_cooldown = 0
+		self.recover_timer = 0
 
 	def compute_grounding(self):
 		grounding = {
@@ -340,20 +363,16 @@ def step_game(_):
 		dx = 0
 
 		is_doing_action = False
-		for hitbox in fighter.hitboxes:
-			if hitbox.is_active:
-				is_doing_action = True
-				hitbox.active_timer = max(hitbox.active_timer - 1, 0)
-				if hitbox.active_timer <= 0:
-					hitbox.deactivate(game_state.physics_sim)
-			else:
-				hitbox.cooldown_timer = max(hitbox.cooldown_timer - 1, 0)
+		for attack in fighter.attacks:
+			results: StepAttackResults = step_attack(attack, game_state.physics_sim)
+			is_doing_action = is_doing_action or results.is_active
+			fighter.recover_timer = results.recover_frames
 
-		if is_doing_action == False and fighter.recover_cooldown == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_LEFT or fighter.input[INPUT_MOVE_LEFT] == False) and fighter.input[INPUT_MOVE_RIGHT]:
+		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_LEFT or fighter.input[INPUT_MOVE_LEFT] == False) and fighter.input[INPUT_MOVE_RIGHT]:
 			fighter.side_facing = consts.FIGHTER_SIDE_FACING_RIGHT
 			dx = 50
 		
-		if is_doing_action == False and fighter.recover_cooldown == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_RIGHT or fighter.input[INPUT_MOVE_RIGHT] == False) and fighter.input[INPUT_MOVE_LEFT]:
+		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_RIGHT or fighter.input[INPUT_MOVE_RIGHT] == False) and fighter.input[INPUT_MOVE_LEFT]:
 			fighter.side_facing = consts.FIGHTER_SIDE_FACING_LEFT
 			dx = -50
 
@@ -370,15 +389,9 @@ def step_game(_):
 			y_force = fighter.body.mass * jump_v
 			fighter.body.apply_impulse_at_local_point((0, y_force))
 
-		fighter.recover_cooldown = max(fighter.recover_cooldown-1, 0)
-		if dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_cooldown == 0 and is_doing_action == False and fighter.neutral_light_hitbox.cooldown_timer == 0:
-			fighter.recover_cooldown = consts.NEUTRAL_LIGHT_HIT_RECOVERY_FRAMES
-			fighter.neutral_light_hitbox.activate(fighter.side_facing, game_state.physics_sim)
-			dx = 0
-
-		if dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_cooldown == 0 and is_doing_action == False and fighter.side_light_hitbox.cooldown_timer == 0:
-			fighter.recover_cooldown = consts.NEUTRAL_LIGHT_HIT_RECOVERY_FRAMES
-			fighter.side_light_hitbox.activate(fighter.side_facing, game_state.physics_sim)
+		if dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_timer == 0 and is_doing_action == False and fighter.side_light_attack.cooldown_timer == 0:
+			fighter.recover_timer = consts.NEUTRAL_LIGHT_HIT_RECOVERY_FRAMES
+			activate_attack(fighter.side_light_attack, fighter.side_facing)
 			dx = 0
 
 		fighter.body.velocity = dx, max(fighter.body.velocity.y, -FALL_VELOCITY)
@@ -386,6 +399,7 @@ def step_game(_):
 		fighter.prev_input = fighter.input.copy()
 
 
+	fighter.recover_timer = max(fighter.recover_timer-1, 0)
 	game_state.physics_sim.step(TIMESTEP)
 
 
