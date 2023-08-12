@@ -148,69 +148,6 @@ def activate_attack(attack: Attack, side_facing: int) -> (float,float):
 			c.is_active = False
 	return attack.start_velocity
 
-class StepAttackResults():
-	def __init__(self, is_active: bool, recover_frames: int):
-		self.is_active = is_active
-		self.fighter_recover_frames = recover_frames
-
-def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
-	if attack.is_active == False:
-		attack.cooldown_timer = max(attack.cooldown_timer - 1, 0)
-		return StepAttackResults(False, 0)
-	
-	if attack.recover_timer > 0:
-		print("recovering between powers")
-		attack.recover_timer = max(attack.recover_timer - 1, 0)
-		return StepAttackResults(True, 0)
-
-	print("stepping attack")
-
-	attack.cast_frame += 1
-	current_power = attack.powers[attack.power_idx]
-	current_cast = current_power.casts[attack.cast_idx]
-	# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
-	if attack.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames):
-		attack.cast_frame = 1
-		attack.cast_idx += 1
-		if current_cast.hitbox != None:
-			if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
-				for shape in current_cast.hitbox.left_shapes:
-					space.remove(shape)
-			elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
-				for shape in current_cast.hitbox.right_shapes:
-					space.remove(shape)
-		if attack.cast_idx >= len(current_power.casts):
-			attack.cast_idx = 0
-			if attack.power_idx < len(attack.powers)-1:
-				attack.recover_timer = current_power.recovery_frames + current_power.fixed_recovery_frames
-			attack.power_idx += 1
-			if attack.power_idx >= len(attack.powers):
-				attack.power_idx = 0
-				attack.is_active = False
-				return StepAttackResults(False, 0)
-		
-		current_power = attack.powers[attack.power_idx]
-		current_cast = current_power.casts[attack.cast_idx]
-
-	fighter_recovery_frames = 0
-	if current_power.is_active == False:
-		current_power.is_active = True
-		attack.cooldown_timer += current_power.cooldown_frames
-		if attack.power_idx == len(attack.powers)-1:
-			fighter_recovery_frames = current_power.recovery_frames + current_power.fixed_recovery_frames
-
-	if attack.cast_frame >= current_cast.startup_frames and current_cast.is_active == False:
-		current_cast.is_active = True
-		if current_cast.hitbox != None:
-			if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
-				for shape in current_cast.hitbox.left_shapes:
-					space.add(shape)
-			elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
-				for shape in current_cast.hitbox.right_shapes:
-					space.add(shape)
-
-	return StepAttackResults(True, fighter_recovery_frames)
-
 class Fighter():
 	def __init__(self, space: pymunk.Space, center: tuple[float, float], side_facing = consts.FIGHTER_SIDE_FACING_LEFT):
 		#hurtbox body is supposed to be the shape of a capsule: 2 circles and 1 rectangle
@@ -306,7 +243,7 @@ class Fighter():
 			Power([Cast(startup_frames = 0, active_frames=1)], fixed_recovery_frames=2, recovery_frames=9),
 		], start_velocity=(0,0))
 
-		#TODO: don't forget to ad all attacks in here
+		#TODO: don't forget to add all attacks in here
 		self.attacks.append(self.side_light_attack)
 		self.attacks.append(self.neutral_light_attack)
 
@@ -383,9 +320,60 @@ def step_game(_):
 		is_doing_action = False
 		if fighter.recover_timer == 0:
 			for attack in fighter.attacks:
-				results: StepAttackResults = step_attack(attack, game_state.physics_sim)
-				is_doing_action = is_doing_action or results.is_active
-				fighter.recover_timer = results.fighter_recover_frames
+				if attack.is_active == False:
+					attack.cooldown_timer = max(attack.cooldown_timer - 1, 0)
+					continue
+				
+				is_doing_action = True
+				if attack.recover_timer > 0:
+					print("attack is recovering between powers")
+					attack.recover_timer = max(attack.recover_timer - 1, 0)
+					continue
+
+				print("stepping through attack")
+
+				attack.cast_frame += 1
+				current_power = attack.powers[attack.power_idx]
+				current_cast = current_power.casts[attack.cast_idx]
+				# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
+				if attack.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames):
+					attack.cast_frame = 1
+					attack.cast_idx += 1
+					if current_cast.hitbox != None:
+						if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+							for shape in current_cast.hitbox.left_shapes:
+								game_state.physics_sim.remove(shape)
+						elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
+							for shape in current_cast.hitbox.right_shapes:
+								game_state.physics_sim.remove(shape)
+					if attack.cast_idx >= len(current_power.casts):
+						attack.cast_idx = 0
+						if attack.power_idx < len(attack.powers)-1:
+							attack.recover_timer = current_power.recovery_frames + current_power.fixed_recovery_frames
+						attack.power_idx += 1
+						if attack.power_idx >= len(attack.powers):
+							attack.power_idx = 0
+							attack.is_active = False
+							continue
+					
+					current_power = attack.powers[attack.power_idx]
+					current_cast = current_power.casts[attack.cast_idx]
+
+				if current_power.is_active == False:
+					current_power.is_active = True
+					attack.cooldown_timer += current_power.cooldown_frames
+					if attack.power_idx == len(attack.powers)-1:
+						fighter.recover_timer = current_power.recovery_frames + current_power.fixed_recovery_frames
+
+				if attack.cast_frame >= current_cast.startup_frames and current_cast.is_active == False:
+					current_cast.is_active = True
+					if current_cast.hitbox != None:
+						if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+							for shape in current_cast.hitbox.left_shapes:
+								game_state.physics_sim.add(shape)
+						elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
+							for shape in current_cast.hitbox.right_shapes:
+								game_state.physics_sim.add(shape)
 
 		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_LEFT or fighter.input[INPUT_MOVE_LEFT] == False) and fighter.input[INPUT_MOVE_RIGHT]:
 			fighter.side_facing = consts.FIGHTER_SIDE_FACING_RIGHT
