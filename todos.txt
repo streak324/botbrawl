@@ -1,0 +1,23 @@
+- apply cast's velocity to fighter velocity
+- squash the fighter's hurtbox when doing a down light or down heavy attack.
+- apply damage and force to other fighter when being hit
+ o force
+ o damage
+ o force scaled with amount of damage
+- add every unarmed attack move
+ x neutral light (no connected hits)
+ o neural light (with connected hits)
+ x side light
+ o down light
+ o aerial neutral light (no connected hits)
+ o aerial neutral light (with connected hits)
+ o aerial side light
+ o aerial down light
+ o neutral heavy
+ o side heavy
+ o down heavy
+ o aerial neutral heavy (also used for side)
+ o aerial down heavy (fighter can have this attack running for as long as they are in the air)
+- heavy attacks can be charged for more damage + force
+- death + respawn when far enough away from the arena
+- MORE SOON
