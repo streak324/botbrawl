@@ -434,13 +434,13 @@ def step_game(_):
 
 		if fighter.input[INPUT_MOVE_DOWN] and fighter.is_grounded and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_timer == 0 and is_doing_action == False and fighter.down_light_attack.cooldown_timer == 0:
 			activate_attack(fighter.down_light_attack, fighter.side_facing)
-			print("activating netural light")
+			print("activated down light", fighter.down_light_attack.side_facing, fighter.side_facing)
 		elif dx != 0 and fighter.is_grounded and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_timer == 0 and is_doing_action == False and fighter.side_light_attack.cooldown_timer == 0:
-			print("activating side light")
 			activate_attack(fighter.side_light_attack, fighter.side_facing)
+			print("activated side light", fighter.side_light_attack.side_facing, fighter.side_facing)
 			dx = 0
 		elif dx == 0 and fighter.is_grounded and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_timer == 0 and is_doing_action == False and fighter.neutral_light_attack.cooldown_timer == 0:
-			print("activating down light")
+			print("activated neutral light", fighter.neutral_light_attack.side_facing, fighter.side_facing)
 			activate_attack(fighter.neutral_light_attack, fighter.side_facing)
 			dx = 0
 
@@ -448,7 +448,8 @@ def step_game(_):
 		if is_doing_action and current_cast != None and current_cast.is_active and current_cast.active_velocity != None:
 			print("active velocity. side facing: {}, {}".format(attack.side_facing, fighter.side_facing))
 			fighter.body.velocity = current_cast.active_velocity
-			if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+			if fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+				print("facing left")
 				fighter.body.velocity = -fighter.body.velocity.x, -fighter.body.velocity.y
 		else:
 			fighter.body.velocity = dx, max(fighter.body.velocity.y, -FALL_VELOCITY)
