@@ -20,7 +20,16 @@ roughly sorted by priority
  o aerial neutral heavy (also used for side)
  o aerial down heavy (fighter can have this attack running for as long as they are in the air)
 - heavy attacks can be charged for more damage + force
+- dodge
+ o side dodge
+ o neutral dodge
+ o aerial dodge
+ o gravity cancel attacks
 - death + respawn when far enough away from the arena
-- squash fighter's hurtbox on the second cast of down light
-- resize hurtbox back to normal unarmed down light is done
+- apply series of offsets to hurtboxes when certain casts require it
+ o neutral light second cast with hitbox
+ o down light at the start of first cast
+ o side light at the start of the first cast
+- allow casts to alter size of hurtbox on certain frames:
+ o second cast of neutral down light
 - MORE SOON
