@@ -215,6 +215,9 @@ class Fighter():
 		left_aerial_side_light_hitbox_shapes_3 = add_capsule_shape(self.body, (-12, -5), 2, 2)
 		right_aerial_side_light_hitbox_shapes_3 = add_capsule_shape(self.body, (12, -5), 2, 2)
 
+		left_aerial_down_light_hitbox_shapes = add_capsule_shape(self.body, (-5, -4), 2, 3) + add_capsule_shape(self.body, (-6, -6), 3, 4)
+		right_aerial_down_light_hitbox_shapes = add_capsule_shape(self.body, (5, -4), 2, 3) + add_capsule_shape(self.body, (6, -6), 3, 4)
+
 		#NOTE: add all hitboxes into this loop
 		for shape in (left_side_light_hitbox_shapes + right_side_light_hitbox_shapes 
 			+ left_neutral_light_hitbox_shapes_1 + right_neutral_light_hitbox_shapes_1 
@@ -225,6 +228,7 @@ class Fighter():
 			+ left_aerial_side_light_hitbox_shapes_1 + right_aerial_side_light_hitbox_shapes_1
 			+ left_aerial_side_light_hitbox_shapes_2 + right_aerial_side_light_hitbox_shapes_2
 			+ left_aerial_side_light_hitbox_shapes_3 + right_aerial_side_light_hitbox_shapes_3
+			+ left_aerial_down_light_hitbox_shapes + right_aerial_down_light_hitbox_shapes
 			):
 			shape.collision_type = HITBOX_COLLISION_TYPE	
 			shape.filter = hitbox_filter
@@ -343,12 +347,31 @@ class Fighter():
 			),
 		])
 
+		self.aerial_down_light_attack = Attack([
+			Power(
+				casts = [
+					Cast(startup_frames=4, active_frames=1),
+					Cast(
+						startup_frames=4, active_frames=16, base_dmg=16, var_force=5, fixed_force=65, active_velocity=(50,-10),
+						hitbox=Hitbox(left_aerial_down_light_hitbox_shapes, right_aerial_down_light_hitbox_shapes),
+					)
+				],
+				cooldown_frames=9, stun_frames=19
+			),
+			Power(
+				casts = [
+					Cast(startup_frames=4, active_frames=1),
+				],
+			),
+		])
+
 		#NOTE: add all attacks in here
 		self.attacks.append(self.side_light_attack)
 		self.attacks.append(self.neutral_light_attack)
 		self.attacks.append(self.down_light_attack)
 		self.attacks.append(self.aerial_neutral_light_attack)
 		self.attacks.append(self.aerial_side_light_attack)
+		self.attacks.append(self.aerial_down_light_attack)
 
 		self.midair_jumps_left = 0
 		self.is_grounded = False
@@ -513,7 +536,9 @@ def step_game(_):
 				elif dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.neutral_light_attack.cooldown_timer == 0:
 					activate_attack(fighter.neutral_light_attack, fighter.side_facing)
 			else:
-				if dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT)  and fighter.aerial_side_light_attack.cooldown_timer == 0:
+				if fighter.input[INPUT_MOVE_DOWN] and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.aerial_down_light_attack.cooldown_timer == 0:
+					activate_attack(fighter.aerial_down_light_attack, fighter.side_facing)
+				elif dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT)  and fighter.aerial_side_light_attack.cooldown_timer == 0:
 					activate_attack(fighter.aerial_side_light_attack, fighter.side_facing)
 				elif dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.aerial_neutral_light_attack.cooldown_timer == 0:
 					activate_attack(fighter.aerial_neutral_light_attack, fighter.side_facing)
@@ -523,7 +548,7 @@ def step_game(_):
 			attack_velocity = current_cast.active_velocity
 			if fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 				print("facing left")
-				attack_velocity = -attack_velocity[0], -attack_velocity[1]
+				attack_velocity = -attack_velocity[0], attack_velocity[1]
 		fighter.body.velocity = dx + attack_velocity[0], max(fighter.body.velocity.y, -FALL_VELOCITY) + attack_velocity[1]
 
 		fighter.recover_timer = max(fighter.recover_timer-1, 0)
