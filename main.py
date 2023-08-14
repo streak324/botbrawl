@@ -199,11 +199,32 @@ class Fighter():
 
 		left_down_light_hitbox_shapes = add_capsule_shape(self.body, (-8, -4), 10, 5)
 		right_down_light_hitbox_shapes = add_capsule_shape(self.body, (8, -4), 10, 5)
+		
+		left_aerial_neutral_light_hitbox_shapes_1 = add_capsule_shape(self.body, (-7, 1), 5, 10)
+		right_aerial_neutral_light_hitbox_shapes_1 = add_capsule_shape(self.body, (7, 1), 5, 10)
 
+		left_aerial_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (-7, -1), 4, 3) + add_capsule_shape(self.body, (-9, 2), 8, 4)
+		right_aerial_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (7, -1), 4, 3) + add_capsule_shape(self.body, (9, 2), 8, 4)
+
+		left_aerial_side_light_hitbox_shapes_1 = add_capsule_shape(self.body, (-8, -2), 6, 3) + add_capsule_shape(self.body, (-10, -4), 4, 3)
+		right_aerial_side_light_hitbox_shapes_1 = add_capsule_shape(self.body, (8, -2), 6, 3) + add_capsule_shape(self.body, (10, -4), 4, 3)
+
+		left_aerial_side_light_hitbox_shapes_2 = add_capsule_shape(self.body, (-9, -2), 4, 3) + add_capsule_shape(self.body, (-10, -4), 4, 3)
+		right_aerial_side_light_hitbox_shapes_2 = add_capsule_shape(self.body, (9, -2), 4, 3) + add_capsule_shape(self.body, (10, -4), 4, 3)
+
+		left_aerial_side_light_hitbox_shapes_3 = add_capsule_shape(self.body, (-12, -5), 2, 2)
+		right_aerial_side_light_hitbox_shapes_3 = add_capsule_shape(self.body, (12, -5), 2, 2)
+
+		#NOTE: add all hitboxes into this loop
 		for shape in (left_side_light_hitbox_shapes + right_side_light_hitbox_shapes 
 			+ left_neutral_light_hitbox_shapes_1 + right_neutral_light_hitbox_shapes_1 
 			+ left_neutral_light_hitbox_shapes_2 + right_neutral_light_hitbox_shapes_2
 			+ left_down_light_hitbox_shapes + right_down_light_hitbox_shapes
+			+ left_aerial_neutral_light_hitbox_shapes_1 + right_aerial_neutral_light_hitbox_shapes_1
+			+ left_aerial_neutral_light_hitbox_shapes_2 + right_aerial_neutral_light_hitbox_shapes_2
+			+ left_aerial_side_light_hitbox_shapes_1 + right_aerial_side_light_hitbox_shapes_1
+			+ left_aerial_side_light_hitbox_shapes_2 + right_aerial_side_light_hitbox_shapes_2
+			+ left_aerial_side_light_hitbox_shapes_3 + right_aerial_side_light_hitbox_shapes_3
 			):
 			shape.collision_type = HITBOX_COLLISION_TYPE	
 			shape.filter = hitbox_filter
@@ -254,11 +275,11 @@ class Fighter():
 						startup_frames=5, active_frames=3, active_velocity=(50,0)
 					),
 					Cast(
-						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, active_velocity=(50,0),
+						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, active_velocity=(100,0),
 						hitbox=Hitbox(left_down_light_hitbox_shapes, right_down_light_hitbox_shapes)
 					),
 					Cast(
-						startup_frames=0,active_frames=3,active_velocity=(100,0)
+						startup_frames=0,active_frames=3,active_velocity=(50,0)
 					),
 				],
 				cooldown_frames = 0, stun_frames = 31
@@ -273,10 +294,61 @@ class Fighter():
 			)
 		])
 
+		self.aerial_neutral_light_attack = Attack([
+			Power(
+				casts = [
+					Cast(
+						startup_frames=7, active_frames=5, base_dmg=3, fixed_force=40,
+						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_1, right_aerial_neutral_light_hitbox_shapes_1),
+					),
+				],
+				cooldown_frames=7, stun_frames=17
+			),
+			Power(
+				casts = [
+					Cast(
+						startup_frames=8, active_frames=5, base_dmg=3, fixed_force=40,
+						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_2, right_aerial_neutral_light_hitbox_shapes_2),
+					),
+				],
+				recovery_frames=4, stun_frames=21
+			),
+			Power(
+				casts = [ Cast( startup_frames=0, active_frames=1) ],
+				fixed_recovery_frames=1, recovery_frames=15, cooldown_frames=0,
+			),
+		])
+
+		self.aerial_side_light_attack = Attack([
+			Power(
+				casts = [
+					Cast(
+						startup_frames=13, active_frames=3, base_dmg=13, var_force=40, fixed_force=45, active_velocity=(50, 0),
+						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_1, right_aerial_side_light_hitbox_shapes_1),
+					),
+					Cast(
+						startup_frames=0, active_frames=2, base_dmg=13, var_force=37, fixed_force=45, active_velocity=(50, 0),
+						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_2, right_aerial_side_light_hitbox_shapes_2),
+					),
+					Cast(
+						startup_frames=0, active_frames=2, base_dmg=13, var_force=36, fixed_force=45, active_velocity=(50, 0),
+						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_3, right_aerial_side_light_hitbox_shapes_3),
+					)
+				],
+				cooldown_frames=14, stun_frames=17,
+			),
+			Power(
+				casts = [ Cast(startup_frames=0, active_frames=1) ],
+				fixed_recovery_frames=5, recovery_frames=17
+			),
+		])
+
 		#NOTE: add all attacks in here
 		self.attacks.append(self.side_light_attack)
 		self.attacks.append(self.neutral_light_attack)
 		self.attacks.append(self.down_light_attack)
+		self.attacks.append(self.aerial_neutral_light_attack)
+		self.attacks.append(self.aerial_side_light_attack)
 
 		self.midair_jumps_left = 0
 		self.is_grounded = False
@@ -432,27 +504,27 @@ def step_game(_):
 			y_force = fighter.body.mass * jump_v
 			fighter.body.apply_impulse_at_local_point((0, y_force))
 
-		if fighter.input[INPUT_MOVE_DOWN] and fighter.is_grounded and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_timer == 0 and is_doing_action == False and fighter.down_light_attack.cooldown_timer == 0:
-			activate_attack(fighter.down_light_attack, fighter.side_facing)
-			print("activated down light", fighter.down_light_attack.side_facing, fighter.side_facing)
-		elif dx != 0 and fighter.is_grounded and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_timer == 0 and is_doing_action == False and fighter.side_light_attack.cooldown_timer == 0:
-			activate_attack(fighter.side_light_attack, fighter.side_facing)
-			print("activated side light", fighter.side_light_attack.side_facing, fighter.side_facing)
-			dx = 0
-		elif dx == 0 and fighter.is_grounded and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.recover_timer == 0 and is_doing_action == False and fighter.neutral_light_attack.cooldown_timer == 0:
-			print("activated neutral light", fighter.neutral_light_attack.side_facing, fighter.side_facing)
-			activate_attack(fighter.neutral_light_attack, fighter.side_facing)
-			dx = 0
+		if fighter.recover_timer == 0 and is_doing_action == False:
+			if fighter.is_grounded:
+				if fighter.input[INPUT_MOVE_DOWN] and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.down_light_attack.cooldown_timer == 0:
+					activate_attack(fighter.down_light_attack, fighter.side_facing)
+				elif dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT)  and fighter.side_light_attack.cooldown_timer == 0:
+					activate_attack(fighter.side_light_attack, fighter.side_facing)
+				elif dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.neutral_light_attack.cooldown_timer == 0:
+					activate_attack(fighter.neutral_light_attack, fighter.side_facing)
+			else:
+				if dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT)  and fighter.aerial_side_light_attack.cooldown_timer == 0:
+					activate_attack(fighter.aerial_side_light_attack, fighter.side_facing)
+				elif dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.aerial_neutral_light_attack.cooldown_timer == 0:
+					activate_attack(fighter.aerial_neutral_light_attack, fighter.side_facing)
 
-
+		attack_velocity = (0,0)
 		if is_doing_action and current_cast != None and current_cast.is_active and current_cast.active_velocity != None:
-			print("active velocity. side facing: {}, {}".format(attack.side_facing, fighter.side_facing))
-			fighter.body.velocity = current_cast.active_velocity
+			attack_velocity = current_cast.active_velocity
 			if fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 				print("facing left")
-				fighter.body.velocity = -fighter.body.velocity.x, -fighter.body.velocity.y
-		else:
-			fighter.body.velocity = dx, max(fighter.body.velocity.y, -FALL_VELOCITY)
+				attack_velocity = -attack_velocity[0], -attack_velocity[1]
+		fighter.body.velocity = dx + attack_velocity[0], max(fighter.body.velocity.y, -FALL_VELOCITY) + attack_velocity[1]
 
 		fighter.recover_timer = max(fighter.recover_timer-1, 0)
 		#input should be copied into previous input AFTER all logic needing input has been processed

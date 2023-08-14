@@ -1,1 +1,1 @@
-the player sometimes moves in the opposite direction when doing a side light
+- fix collision issue with going into the wall

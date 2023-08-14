@@ -1,6 +1,6 @@
 roughly sorted by priority
 
-- apply cast's velocity to fighter velocity
+x apply cast's velocity to fighter velocity
 - apply damage and force to other fighter when being hit
  o force
  o damage
@@ -26,6 +26,7 @@ roughly sorted by priority
  o aerial dodge
  o gravity cancel attacks
 - death + respawn when far enough away from the arena
+- grapple into the sides of the wall
 - apply series of offsets to hurtboxes when certain casts require it
  o neutral light second cast with hitbox
  o down light at the start of first cast
