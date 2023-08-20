@@ -412,6 +412,7 @@ def post_solve_separate_fighter_from_wall(arbiter, space, data):
 	impulse = arbiter.total_impulse
 	return True
 
+
 class GameState():
 	def __init__(self):
 		self.physics_sim = pymunk.Space()
@@ -435,6 +436,7 @@ class GameState():
 
 		self.handler = self.physics_sim.add_collision_handler(FIGHTER_WALL_COLLIDER_COLLISION_TYPE, WALL_COLLISION_TYPE)
 		self.handler.post_solve = post_solve_separate_fighter_from_wall
+
 		self.gravity_enabled = True
 
 game_state = GameState()
@@ -547,9 +549,15 @@ def step_game(_):
 		if is_doing_action and current_cast != None and current_cast.is_active and current_cast.active_velocity != None:
 			attack_velocity = current_cast.active_velocity
 			if fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
-				print("facing left")
 				attack_velocity = -attack_velocity[0], attack_velocity[1]
 		fighter.body.velocity = dx + attack_velocity[0], max(fighter.body.velocity.y, -FALL_VELOCITY) + attack_velocity[1]
+
+		for shape in fighter.body.shapes:
+			if shape.collision_type == HURTBOX_COLLISION_TYPE:
+				results = game_state.physics_sim.shape_query(shape)
+				for result in results: 
+					if  result.shape.collision_type == HITBOX_COLLISION_TYPE and result.shape not in fighter.body.shapes:
+						print("hit!")
 
 		fighter.recover_timer = max(fighter.recover_timer-1, 0)
 		#input should be copied into previous input AFTER all logic needing input has been processed
