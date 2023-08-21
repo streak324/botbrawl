@@ -28,9 +28,6 @@ INPUT_THROW = 7
 
 TOTAL_MIDAIR_JUMPS_ALLOWED = 2
 
-SIDE_PRECEDENCE_LEFT = 1
-SIDE_PRECEDENCE_RIGHT = 2
-
 JUMP_HEIGHT = 15
 
 #not sure how im going to do this one yet.
@@ -91,6 +88,10 @@ class Hitbox():
 	def __init__(self, left_shapes: list[pymunk.Shape], right_shapes: list[pymunk.Shape]):
 		self.left_shapes = left_shapes
 		self.right_shapes = right_shapes
+		for shape in self.left_shapes:
+			shape.side_facing = consts.FIGHTER_SIDE_FACING_LEFT
+		for shape in self.right_shapes:
+			shape.side_facing = consts.FIGHTER_SIDE_FACING_RIGHT
 
 # to mimic brawlhalla, every attack move has a sequence of powers, and each power has a sequence of casts.
 class Cast():
@@ -105,6 +106,9 @@ class Cast():
 		self.var_force = var_force
 		self.fixed_force = fixed_force
 		self.hitbox = hitbox
+		if hitbox != None:
+			for shape in hitbox.left_shapes + hitbox.right_shapes:
+				shape.cast = self
 		# start velocity should be negated when attack is facing left
 		self.active_velocity = active_velocity
 		self.is_active_velocity_all_frames = is_active_velocity_all_frames
@@ -113,6 +117,10 @@ class Cast():
 class Power():
 	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0):
 		self.casts = casts
+		for cast in self.casts:
+			if cast.hitbox != None:
+				for shape in cast.hitbox.left_shapes + cast.hitbox.right_shapes:
+					shape.power = self
 		self.cooldown_frames = cooldown_frames
 		self.fixed_recovery_frames = fixed_recovery_frames
 		self.recovery_frames = recovery_frames
@@ -121,8 +129,9 @@ class Power():
 		self.is_active = False
 
 class Attack():
-	def __init__(self, powers: list[Power]):
+	def __init__(self, powers: list[Power], name: str):
 		self.powers = powers
+		self.name = name 
 		self.is_active = False
 		self.cast_frame = 0
 		self.power_idx = 0
@@ -135,6 +144,7 @@ class Attack():
 		pass
 
 def activate_attack(attack: Attack, side_facing: int) -> (float,float):
+	print("activating attack {} facing {}".format(attack.name, side_facing))
 	attack.is_active = True
 	attack.cast_frame = 0
 	attack.power_idx = 0
@@ -157,6 +167,8 @@ class Fighter():
 		self.body._set_position(center)
 		space.add(self.body)
 		self.attacks: list[Attack] = []
+		self.last_cast_id_hit: int = None
+		self.dmg = 0
 
 		hurtbox_filter = pymunk.ShapeFilter(
 			categories=0b1 << (HURTBOX_COLLISION_TYPE-1),
@@ -168,13 +180,14 @@ class Fighter():
 
 		hitbox_filter = pymunk.ShapeFilter(
 			categories=0b1 << (HITBOX_COLLISION_TYPE-1), 
-			mask=0b1 << (HURTBOX_COLLISION_TYPE))
+			mask=0b1 << (HURTBOX_COLLISION_TYPE-1))
 
 		hurtbox_shapes = add_capsule_shape(self.body, (0,0), HURTBOX_WIDTH, HURTBOX_HEIGHT)
 		for shape in hurtbox_shapes:
 			shape.collision_type = HURTBOX_COLLISION_TYPE 
 			shape.filter = hurtbox_filter
 			shape.sensor = True
+			shape.fighter = self
 			space.add(shape)
 
 		self.wall_collider = create_pymunk_box(self.body,
@@ -248,7 +261,7 @@ class Fighter():
 				cooldown_frames = 10, stun_frames = 18
 			), 
 			Power([Cast(startup_frames=0, active_frames=1, active_velocity=(100,0))], fixed_recovery_frames = 2, recovery_frames = 18) 
-		])
+		], name="unarmed_side_light")
 
 		self.neutral_light_attack = Attack([
 			Power(
@@ -270,7 +283,7 @@ class Fighter():
 				recovery_frames = 0, cooldown_frames = 0, stun_frames = 17
 			),
 			Power([Cast(startup_frames = 0, active_frames=1)], fixed_recovery_frames=2, recovery_frames=9),
-		])
+		], name="unarmed_neutral_light")
 
 		self.down_light_attack = Attack([
 			Power(
@@ -296,7 +309,7 @@ class Fighter():
 				],
 				fixed_recovery_frames=1, recovery_frames=13
 			)
-		])
+		], name="unarmed_down_light")
 
 		self.aerial_neutral_light_attack = Attack([
 			Power(
@@ -321,7 +334,7 @@ class Fighter():
 				casts = [ Cast( startup_frames=0, active_frames=1) ],
 				fixed_recovery_frames=1, recovery_frames=15, cooldown_frames=0,
 			),
-		])
+		], name="unarmed_aerial_neutral_light")
 
 		self.aerial_side_light_attack = Attack([
 			Power(
@@ -345,7 +358,7 @@ class Fighter():
 				casts = [ Cast(startup_frames=0, active_frames=1) ],
 				fixed_recovery_frames=5, recovery_frames=17
 			),
-		])
+		], name="unarmed_aerial_side_light")
 
 		self.aerial_down_light_attack = Attack([
 			Power(
@@ -363,7 +376,7 @@ class Fighter():
 					Cast(startup_frames=4, active_frames=1),
 				],
 			),
-		])
+		], name="unarmed_aerial_down_light")
 
 		#NOTE: add all attacks in here
 		self.attacks.append(self.side_light_attack)
@@ -378,6 +391,8 @@ class Fighter():
 
 		#number of frames fighter must wait before attempting a new action (dodge, move, hit).
 		self.recover_timer = 0
+		#whether the player is currently getting hit by an action
+		self.is_hit = False
 
 	def compute_grounding(self):
 		grounding = {
@@ -407,11 +422,23 @@ class Fighter():
 	def is_input_tapped(self, input_index: int) -> bool:
 		return self.input[input_index] and self.prev_input[input_index] == False
 
-# Set up collision handler
-def post_solve_separate_fighter_from_wall(arbiter, space, data):
-	impulse = arbiter.total_impulse
-	return True
+def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data) -> bool:
+	victim: Fighter = arbiter.shapes[0].fighter
+	if victim.is_hit == False:
+		print("connected hit!")
+		victim.is_hit = True
+		cast: Cast = arbiter.shapes[1].cast
+		power: Power = arbiter.shapes[1].power
+		dir = 1
+		if arbiter.shapes[1].side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+			dir = -1
 
+		impulse_scale = 1
+		impulse = (impulse_scale*cast.fixed_force*dir, impulse_scale)
+		victim.body.apply_impulse_at_local_point(impulse)
+		victim.recover_timer = power.stun_frames
+	
+	return True
 
 class GameState():
 	def __init__(self):
@@ -434,8 +461,8 @@ class GameState():
 		#p3.friction = 1
 		self.physics_sim.add(wall_body, p1, p2, p3)
 
-		self.handler = self.physics_sim.add_collision_handler(FIGHTER_WALL_COLLIDER_COLLISION_TYPE, WALL_COLLISION_TYPE)
-		self.handler.post_solve = post_solve_separate_fighter_from_wall
+		hurtbox_hitbox_handler = self.physics_sim.add_collision_handler(HURTBOX_COLLISION_TYPE, HITBOX_COLLISION_TYPE)
+		hurtbox_hitbox_handler.pre_solve = pre_solve_hurtbox_hitbox
 
 		self.gravity_enabled = True
 
@@ -550,16 +577,15 @@ def step_game(_):
 			attack_velocity = current_cast.active_velocity
 			if fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 				attack_velocity = -attack_velocity[0], attack_velocity[1]
-		fighter.body.velocity = dx + attack_velocity[0], max(fighter.body.velocity.y, -FALL_VELOCITY) + attack_velocity[1]
+		
+		if is_doing_action or fighter.recover_timer == 0:
+			fighter.body.velocity = dx + attack_velocity[0], fighter.body.velocity.y
 
-		for shape in fighter.body.shapes:
-			if shape.collision_type == HURTBOX_COLLISION_TYPE:
-				results = game_state.physics_sim.shape_query(shape)
-				for result in results: 
-					if  result.shape.collision_type == HITBOX_COLLISION_TYPE and result.shape not in fighter.body.shapes:
-						print("hit!")
+		fighter.body.velocity = fighter.body.velocity.x, max(fighter.body.velocity.y, -FALL_VELOCITY) + attack_velocity[1]
 
-		fighter.recover_timer = max(fighter.recover_timer-1, 0)
+		if fighter.is_hit == False:
+			fighter.recover_timer = max(fighter.recover_timer-1, 0)
+		fighter.is_hit = False
 		#input should be copied into previous input AFTER all logic needing input has been processed
 		fighter.prev_input = fighter.input.copy()
 

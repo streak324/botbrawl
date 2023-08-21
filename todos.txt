@@ -5,15 +5,15 @@ x apply cast's velocity to fighter velocity
  o force
  o damage
  o force scaled with amount of damage
-- add every unarmed attack move
+- add every unarmed attack move hitbox frames
  x neutral light (no connected hits)
  o neural light (with connected hits)
  x side light
  x down light
- o aerial neutral light (no connected hits)
+ x aerial neutral light (no connected hits)
  o aerial neutral light (with connected hits)
- o aerial side light
- o aerial down light
+ x aerial side light
+ x aerial down light
  o neutral heavy
  o side heavy
  o down heavy
