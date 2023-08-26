@@ -4,6 +4,7 @@ import pymunk
 import pyglet
 import pymunk.pyglet_util
 from pymunk.vec2d import Vec2d
+from attack import *
 
 import consts
 
@@ -83,79 +84,6 @@ def add_capsule_shape(body: pymunk.Body, offset: tuple[float,float], width: floa
 			(offset[0] - width*0.5, offset[1] - stretch_length*0.5), 
 			(offset[0] + width*0.5, offset[1] + stretch_length*0.5))
 		return [c1, c2, box]
-
-class Hitbox():
-	def __init__(self, left_shapes: list[pymunk.Shape], right_shapes: list[pymunk.Shape]):
-		self.left_shapes = left_shapes
-		self.right_shapes = right_shapes
-		for shape in self.left_shapes:
-			shape.side_facing = consts.FIGHTER_SIDE_FACING_LEFT
-		for shape in self.right_shapes:
-			shape.side_facing = consts.FIGHTER_SIDE_FACING_RIGHT
-
-# to mimic brawlhalla, every attack move has a sequence of powers, and each power has a sequence of casts.
-class Cast():
-	#active_velocity is supposed to be used during active frames.
-	def __init__(
-			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox = None, 
-	      	active_velocity: tuple[float, float] = None, is_active_velocity_all_frames: bool = False
-		):
-		self.startup_frames = startup_frames
-		self.active_frames = active_frames
-		self.base_dmg = base_dmg
-		self.var_force = var_force
-		self.fixed_force = fixed_force
-		self.hitbox = hitbox
-		if hitbox != None:
-			for shape in hitbox.left_shapes + hitbox.right_shapes:
-				shape.cast = self
-		# start velocity should be negated when attack is facing left
-		self.active_velocity = active_velocity
-		self.is_active_velocity_all_frames = is_active_velocity_all_frames
-		self.is_active = False
-
-class Power():
-	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0):
-		self.casts = casts
-		for cast in self.casts:
-			if cast.hitbox != None:
-				for shape in cast.hitbox.left_shapes + cast.hitbox.right_shapes:
-					shape.power = self
-		self.cooldown_frames = cooldown_frames
-		self.fixed_recovery_frames = fixed_recovery_frames
-		self.recovery_frames = recovery_frames
-		self.min_charge_frames = min_charge_frames
-		self.stun_frames = stun_frames
-		self.is_active = False
-
-class Attack():
-	def __init__(self, powers: list[Power], name: str):
-		self.powers = powers
-		self.name = name 
-		self.is_active = False
-		self.cast_frame = 0
-		self.power_idx = 0
-		self.cast_idx = 0
-		# cooldown timer should not start ticking down until all powers have been looped. an attack should not be activated while cooldown timer is greater than zero
-		self.cooldown_timer = 0
-		# recover timer should only be used between powers, where the previous power has recovery frames. if the last power has recovery frames, it should be applied to the fighter's recover timer
-		self.recover_timer = 0
-		self.side_facing = 0
-		pass
-
-def activate_attack(attack: Attack, side_facing: int) -> (float,float):
-	print("activating attack {} facing {}".format(attack.name, side_facing))
-	attack.is_active = True
-	attack.cast_frame = 0
-	attack.power_idx = 0
-	attack.cast_idx = 0
-	attack.side_facing = side_facing
-	attack.cooldown_timer = 0
-	attack.recover_timer = 0
-	for p in attack.powers:
-		p.is_active = False
-		for c in p.casts:
-			c.is_active = False
 
 class Fighter():
 	def __init__(self, space: pymunk.Space, center: tuple[float, float], side_facing = consts.FIGHTER_SIDE_FACING_LEFT):
@@ -472,66 +400,14 @@ def step_game(_):
 	for fighter in game_state.fighters:
 		dx = 0
 		current_cast: Cast = None
-		current_power: Power = None
 
 		is_doing_action = False
 		if fighter.recover_timer == 0:
 			for attack in fighter.attacks:
-				if attack.is_active == False:
-					attack.cooldown_timer = max(attack.cooldown_timer - 1, 0)
-					continue
-				
-				if attack.recover_timer > 0:
-					print("attack is recovering between powers")
-					attack.recover_timer = max(attack.recover_timer - 1, 0)
-					is_doing_action = True
-					continue
-
-				attack.cast_frame += 1
-				current_power = attack.powers[attack.power_idx]
-				current_cast = current_power.casts[attack.cast_idx]
-				# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
-				if attack.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames):
-					attack.cast_frame = 1
-					attack.cast_idx += 1
-					if current_cast.hitbox != None:
-						if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
-							for shape in current_cast.hitbox.left_shapes:
-								game_state.physics_sim.remove(shape)
-						elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
-							for shape in current_cast.hitbox.right_shapes:
-								game_state.physics_sim.remove(shape)
-					if attack.cast_idx >= len(current_power.casts):
-						attack.cast_idx = 0
-						if attack.power_idx < len(attack.powers)-1:
-							attack.recover_timer = current_power.recovery_frames + current_power.fixed_recovery_frames
-						attack.power_idx += 1
-						if attack.power_idx >= len(attack.powers):
-							attack.power_idx = 0
-							attack.is_active = False
-							current_power = None
-							current_cast = None
-							continue
-					
-					current_power = attack.powers[attack.power_idx]
-					current_cast = current_power.casts[attack.cast_idx]
-
-				is_doing_action = True
-				if current_power.is_active == False:
-					current_power.is_active = True
-					attack.cooldown_timer += current_power.cooldown_frames
-					if attack.power_idx == len(attack.powers)-1:
-						fighter.recover_timer = current_power.recovery_frames + current_power.fixed_recovery_frames
-
-				if attack.cast_frame >= current_cast.startup_frames and current_cast.is_active == False:
-					current_cast.is_active = True
-					if current_cast.hitbox != None:
-						if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
-							for shape in current_cast.hitbox.left_shapes:
-								game_state.physics_sim.add(shape)
-						elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
-							for shape in current_cast.hitbox.right_shapes:
-								game_state.physics_sim.add(shape)
+				cast, stepping = attack.step(game_state.physics_sim)
+				if not is_doing_action:
+					current_cast = cast
+				is_doing_action = is_doing_action or stepping
 
 		# on input, move fighter to right
 		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_LEFT or fighter.input[INPUT_MOVE_LEFT] == False) and fighter.input[INPUT_MOVE_RIGHT]:
@@ -559,21 +435,22 @@ def step_game(_):
 		if fighter.recover_timer == 0 and is_doing_action == False:
 			if fighter.is_grounded:
 				if fighter.input[INPUT_MOVE_DOWN] and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.down_light_attack.cooldown_timer == 0:
-					activate_attack(fighter.down_light_attack, fighter.side_facing)
+					fighter.down_light_attack.activate(fighter.side_facing)
 				elif dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT)  and fighter.side_light_attack.cooldown_timer == 0:
-					activate_attack(fighter.side_light_attack, fighter.side_facing)
+					fighter.side_light_attack.activate(fighter.side_facing)
 				elif dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.neutral_light_attack.cooldown_timer == 0:
-					activate_attack(fighter.neutral_light_attack, fighter.side_facing)
+					fighter.neutral_light_attack.activate(fighter.side_facing)
 			else:
 				if fighter.input[INPUT_MOVE_DOWN] and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.aerial_down_light_attack.cooldown_timer == 0:
-					activate_attack(fighter.aerial_down_light_attack, fighter.side_facing)
+					fighter.aerial_down_light_attack.activate(fighter.side_facing)
 				elif dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT)  and fighter.aerial_side_light_attack.cooldown_timer == 0:
-					activate_attack(fighter.aerial_side_light_attack, fighter.side_facing)
+					fighter.aerial_side_light_attack.activate(fighter.side_facing)
 				elif dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.aerial_neutral_light_attack.cooldown_timer == 0:
-					activate_attack(fighter.aerial_neutral_light_attack, fighter.side_facing)
+					fighter.aerial_neutral_light_attack.activate(fighter.side_facing)
 
 		attack_velocity = (0,0)
 		if is_doing_action and current_cast != None and current_cast.is_active and current_cast.active_velocity != None:
+			print("attack velocity being applied")
 			attack_velocity = current_cast.active_velocity
 			if fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 				attack_velocity = -attack_velocity[0], attack_velocity[1]
