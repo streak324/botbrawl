@@ -23,30 +23,25 @@ class Cast():
 		self.var_force = var_force
 		self.fixed_force = fixed_force
 		self.hitbox = hitbox
-		if hitbox != None:
-			for shape in hitbox.left_shapes + hitbox.right_shapes:
-				shape.cast = self
 		# start velocity should be negated when attack is facing left
 		self.active_velocity = active_velocity
 		self.is_active_velocity_all_frames = is_active_velocity_all_frames
 		self.is_active = False
 
 class Power():
-	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0):
+	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0, requires_hit: bool = False):
 		self.casts = casts
-		for cast in self.casts:
-			if cast.hitbox != None:
-				for shape in cast.hitbox.left_shapes + cast.hitbox.right_shapes:
-					shape.power = self
 		self.cooldown_frames = cooldown_frames
 		self.fixed_recovery_frames = fixed_recovery_frames
 		self.recovery_frames = recovery_frames
 		self.min_charge_frames = min_charge_frames
 		self.stun_frames = stun_frames
+		self.requires_hit = requires_hit
 		self.is_active = False
 
 class Attack():
 	def __init__(self, powers: list[Power], name: str):
+		self.has_hit = False
 		self.powers = powers
 		self.name = name 
 		self.is_active = False
@@ -58,7 +53,14 @@ class Attack():
 		# recover timer should only be used between powers, where the previous power has recovery frames. if the last power has recovery frames, it should be applied to the fighter's recover timer
 		self.recover_timer = 0
 		self.side_facing = 0
-		pass
+		for power in self.powers:
+			for cast in power.casts:
+				if cast.hitbox != None:
+					for shape in cast.hitbox.left_shapes + cast.hitbox.right_shapes:
+						shape.cast = cast
+						shape.power = power
+						shape.attack = self
+
 	def activate(self, side_facing: int):
 		print("activating attack {} facing {}".format(self.name, side_facing))
 		self.is_active = True
@@ -68,6 +70,7 @@ class Attack():
 		self.side_facing = side_facing
 		self.cooldown_timer = 0
 		self.recover_timer = 0
+		self.has_hit = False
 		for p in self.powers:
 			p.is_active = False
 			for c in p.casts:
@@ -86,7 +89,8 @@ class Attack():
 		
 		self.cast_frame += 1
 		# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
-		if self.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames):
+		is_cast_finished = self.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames)
+		if is_cast_finished:
 			self.cast_frame = 1
 			self.cast_idx += 1
 			if current_cast.hitbox != None:
@@ -101,7 +105,16 @@ class Attack():
 				if self.power_idx < len(self.powers)-1:
 					self.recover_timer = current_power.recovery_frames + current_power.fixed_recovery_frames
 				self.power_idx += 1
-				if self.power_idx >= len(self.powers):
+				current_power = None
+				for (idx, power) in enumerate(self.powers):
+					if idx < self.power_idx:
+						continue
+					if power.requires_hit and not self.has_hit:
+						continue
+					current_power = power
+					self.power_idx = idx
+					break
+				if current_power == None:
 					self.power_idx = 0
 					self.is_active = False
 					current_power = None

@@ -138,6 +138,12 @@ class Fighter():
 		left_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (-4, 0), 4, 4) + add_capsule_shape(self.body, (-6, 4), 8, 6)
 		right_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (4, 0), 4, 4) + add_capsule_shape(self.body, (6, 4), 8, 6)
 
+		left_neutral_light_hitbox_shapes_3 = add_capsule_shape(self.body, (-4, 0), 5, 10)
+		right_neutral_light_hitbox_shapes_3 = add_capsule_shape(self.body, (4, 0), 5, 10)
+
+		left_neutral_light_hitbox_shapes_4 = add_capsule_shape(self.body, (-6, 0), 10, 5)
+		right_neutral_light_hitbox_shapes_4 = add_capsule_shape(self.body, (6, 0), 10, 5)
+
 		left_down_light_hitbox_shapes = add_capsule_shape(self.body, (-8, -4), 10, 5)
 		right_down_light_hitbox_shapes = add_capsule_shape(self.body, (8, -4), 10, 5)
 		
@@ -163,6 +169,8 @@ class Fighter():
 		for shape in (left_side_light_hitbox_shapes + right_side_light_hitbox_shapes 
 			+ left_neutral_light_hitbox_shapes_1 + right_neutral_light_hitbox_shapes_1 
 			+ left_neutral_light_hitbox_shapes_2 + right_neutral_light_hitbox_shapes_2
+			+ left_neutral_light_hitbox_shapes_3 + right_neutral_light_hitbox_shapes_3 
+			+ left_neutral_light_hitbox_shapes_4 + right_neutral_light_hitbox_shapes_4 
 			+ left_down_light_hitbox_shapes + right_down_light_hitbox_shapes
 			+ left_aerial_neutral_light_hitbox_shapes_1 + right_aerial_neutral_light_hitbox_shapes_1
 			+ left_aerial_neutral_light_hitbox_shapes_2 + right_aerial_neutral_light_hitbox_shapes_2
@@ -209,6 +217,27 @@ class Fighter():
 					),
 				],
 				recovery_frames = 0, cooldown_frames = 0, stun_frames = 17
+			),
+			Power(
+				casts = [
+					Cast(
+						startup_frames = 6, active_frames = 3, base_dmg = 3, fixed_force = 25,
+						hitbox=Hitbox(left_neutral_light_hitbox_shapes_3, right_neutral_light_hitbox_shapes_3),
+					),
+				],
+				recovery_frames = 3, stun_frames = 20, requires_hit = True
+			),
+			Power(
+				casts = [
+					Cast(startup_frames=3, active_frames = 1, active_velocity=(1,0)),
+					Cast(startup_frames=3, active_frames = 1, active_velocity=(1,0), is_active_velocity_all_frames=True),
+					Cast(startup_frames=3, active_frames = 1, active_velocity=(1,0), is_active_velocity_all_frames=True),
+					Cast(
+						startup_frames = 2, active_frames = 5, base_dmg=5, var_force=31, fixed_force=52,
+						hitbox=Hitbox(left_neutral_light_hitbox_shapes_4, right_neutral_light_hitbox_shapes_4)
+					),
+				],
+				recovery_frames = 22, stun_frames = 23, requires_hit = True
 			),
 			Power([Cast(startup_frames = 0, active_frames=1)], fixed_recovery_frames=2, recovery_frames=9),
 		], name="unarmed_neutral_light")
@@ -357,6 +386,8 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 		victim.is_hit = True
 		cast: Cast = arbiter.shapes[1].cast
 		power: Power = arbiter.shapes[1].power
+		attack: Attack = arbiter.shapes[1].attack
+		attack.has_hit = True
 		dir = 1
 		if arbiter.shapes[1].side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 			dir = -1
