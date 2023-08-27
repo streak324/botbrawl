@@ -3,15 +3,16 @@ roughly sorted by priority
 x apply cast's velocity to fighter velocity
 - apply damage and force to other fighter when being hit
  o force
+ o force scaled by damage
  o damage
  o force scaled with amount of damage
 - add every unarmed attack move hitbox frames
  x neutral light (no connected hits)
- o neural light (with connected hits)
+ x neural light (with connected hits)
  x side light
  x down light
  x aerial neutral light (no connected hits)
- o aerial neutral light (with connected hits)
+ x aerial neutral light (with connected hits)
  x aerial side light
  x aerial down light
  o neutral heavy

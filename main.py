@@ -153,6 +153,9 @@ class Fighter():
 		left_aerial_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (-7, -1), 4, 3) + add_capsule_shape(self.body, (-9, 2), 8, 4)
 		right_aerial_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (7, -1), 4, 3) + add_capsule_shape(self.body, (9, 2), 8, 4)
 
+		left_aerial_neutral_light_hitbox_shapes_3 = add_capsule_shape(self.body, (-4, 0), 10, 5)
+		right_aerial_neutral_light_hitbox_shapes_3 = add_capsule_shape(self.body, (4, 0), 10, 5)
+
 		left_aerial_side_light_hitbox_shapes_1 = add_capsule_shape(self.body, (-8, -2), 6, 3) + add_capsule_shape(self.body, (-10, -4), 4, 3)
 		right_aerial_side_light_hitbox_shapes_1 = add_capsule_shape(self.body, (8, -2), 6, 3) + add_capsule_shape(self.body, (10, -4), 4, 3)
 
@@ -174,6 +177,7 @@ class Fighter():
 			+ left_down_light_hitbox_shapes + right_down_light_hitbox_shapes
 			+ left_aerial_neutral_light_hitbox_shapes_1 + right_aerial_neutral_light_hitbox_shapes_1
 			+ left_aerial_neutral_light_hitbox_shapes_2 + right_aerial_neutral_light_hitbox_shapes_2
+			+ left_aerial_neutral_light_hitbox_shapes_3 + right_aerial_neutral_light_hitbox_shapes_3
 			+ left_aerial_side_light_hitbox_shapes_1 + right_aerial_side_light_hitbox_shapes_1
 			+ left_aerial_side_light_hitbox_shapes_2 + right_aerial_side_light_hitbox_shapes_2
 			+ left_aerial_side_light_hitbox_shapes_3 + right_aerial_side_light_hitbox_shapes_3
@@ -286,6 +290,15 @@ class Fighter():
 					),
 				],
 				recovery_frames=4, stun_frames=21
+			),
+			Power(
+				casts = [
+					Cast(
+						startup_frames=8, active_frames=5, base_dmg=5, var_force=37, fixed_force=71,
+						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_3, right_aerial_neutral_light_hitbox_shapes_3)
+					),
+				],
+				recovery_frames=22, stun_frames=19, requires_hit=True,
 			),
 			Power(
 				casts = [ Cast( startup_frames=0, active_frames=1) ],
