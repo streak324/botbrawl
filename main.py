@@ -96,7 +96,7 @@ class Fighter():
 		space.add(self.body)
 		self.attacks: list[Attack] = []
 		self.last_cast_id_hit: int = None
-		self.dmg = 0
+		self.dmg_points = 0
 
 		hurtbox_filter = pymunk.ShapeFilter(
 			categories=0b1 << (HURTBOX_COLLISION_TYPE-1),
@@ -392,6 +392,7 @@ class Fighter():
 	def is_input_tapped(self, input_index: int) -> bool:
 		return self.input[input_index] and self.prev_input[input_index] == False
 
+# function callback to used when a fighter hurtbox overlaps with hitbox. do stuff like knocking back fighter and applying damage points
 def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data) -> bool:
 	victim: Fighter = arbiter.shapes[0].fighter
 	if victim.is_hit == False:
@@ -401,12 +402,15 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 		power: Power = arbiter.shapes[1].power
 		attack: Attack = arbiter.shapes[1].attack
 		attack.has_hit = True
+		if not cast.has_hit:
+			cast.has_hit = True
+			victim.dmg_points += cast.base_dmg
+			print("victim has {} damage points".format(victim.dmg_points))
 		dir = 1
 		if arbiter.shapes[1].side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 			dir = -1
-
 		impulse_scale = 1
-		impulse = (impulse_scale*cast.fixed_force*dir, impulse_scale)
+		impulse = (cast.fixed_force + victim.dmg_points * cast.var_force * 0.01)*dir*impulse_scale, impulse_scale
 		victim.body.apply_impulse_at_local_point(impulse)
 		victim.recover_timer = power.stun_frames
 	
@@ -524,7 +528,14 @@ def on_draw():
 	physics_draw_options.transform = pymunk.Transform.scaling(PIXELS_PER_WORLD_UNITS)
 	game_state.physics_sim.debug_draw(physics_draw_options)
 	physics_batch.draw()
-	pass
+	for fighter in game_state.fighters:
+		body = fighter.body
+		label = pyglet.text.Label('DP: {}'.format(fighter.dmg_points),
+                          font_name='Times New Roman',
+                          font_size=24,
+                          x=body.position.x * PIXELS_PER_WORLD_UNITS, y=(body.position.y + 10) * PIXELS_PER_WORLD_UNITS,
+                          anchor_x='center', anchor_y='center')
+		label.draw()
 
 @game_window.event
 def on_key_press(key, modifiers):

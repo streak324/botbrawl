@@ -27,6 +27,7 @@ class Cast():
 		self.active_velocity = active_velocity
 		self.is_active_velocity_all_frames = is_active_velocity_all_frames
 		self.is_active = False
+		self.has_hit = False
 
 class Power():
 	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0, requires_hit: bool = False):
@@ -75,6 +76,7 @@ class Attack():
 			p.is_active = False
 			for c in p.casts:
 				c.is_active = False
+				c.has_hit = False
 
 	def step(self, space: pymunk.Space) -> (Cast, bool):
 		if self.is_active == False:

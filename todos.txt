@@ -1,11 +1,10 @@
 roughly sorted by priority
 
-x apply cast's velocity to fighter velocity
-- apply damage and force to other fighter when being hit
- o force
- o force scaled by damage
- o damage
- o force scaled with amount of damage
+x apply damage and force to other fighter when being hit
+ x force
+ x force scaled by damage
+ x damage points
+
 - add every unarmed attack move hitbox frames
  x neutral light (no connected hits)
  x neural light (with connected hits)
@@ -20,18 +19,26 @@ x apply cast's velocity to fighter velocity
  o down heavy
  o aerial neutral heavy (also used for side)
  o aerial down heavy (fighter can have this attack running for as long as they are in the air)
+
 - heavy attacks can be charged for more damage + force
+
 - dodge
  o side dodge
  o neutral dodge
  o aerial dodge
  o gravity cancel attacks
 - death + respawn when far enough away from the arena
+
 - grapple into the sides of the wall
+
 - apply series of offsets to hurtboxes when certain casts require it
  o neutral light second cast with hitbox
  o down light at the start of first cast
  o side light at the start of the first cast
+ 
 - allow casts to alter size of hurtbox on certain frames:
  o second cast of neutral down light
 - MORE SOON
+
+DONE:
+x apply cast's velocity to fighter velocity

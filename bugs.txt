@@ -1,2 +1,3 @@
 - fix collision issue with going into the wall
 - player moves too fast on side light
+- fix smoothness issue on desktop
