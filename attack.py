@@ -93,7 +93,6 @@ def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
 	
 	if attack.recover_timer > 0:
 		attack.recover_timer = max(attack.recover_timer - 1, 0)
-		print("attack on recover")
 		return StepAttackResults(is_active=True, velocity=None, recover_frames=0)
 	
 	attack.cast_frame += 1

@@ -453,7 +453,6 @@ def step_game(_):
 			for attack in fighter.attacks:
 				attack_results = step_attack(attack, game_state.physics_sim)
 				if attack_results.is_active and not is_doing_action:
-					print("attack {} is active".format(attack.name))
 					is_doing_action = True
 					break
 
@@ -498,7 +497,6 @@ def step_game(_):
 
 		attack_velocity = (0,0)
 		if is_doing_action and attack_results.is_active and attack_results.velocity != None:
-			print("attack velocity being applied")
 			attack_velocity = attack_results.velocity
 			if fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 				attack_velocity = -attack_velocity[0], attack_velocity[1]
