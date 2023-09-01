@@ -1,9 +1,13 @@
 roughly sorted by priority
 
-x apply damage and force to other fighter when being hit
- x force
- x force scaled by damage
- x damage points
+knockback direction dependent on attack
+ o unarmed n-light 
+ o unarmed d-light
+ o unarmed s-light
+ o unarmed air n-light 
+ o unarmed air d-light
+ o unarmed air s-light
+
 
 - add every unarmed attack move hitbox frames
  x neutral light (no connected hits)
@@ -42,3 +46,8 @@ x apply damage and force to other fighter when being hit
 
 DONE:
 x apply cast's velocity to fighter velocity
+
+x apply damage and force to other fighter when being hit
+ x force
+ x force scaled by damage
+ x damage points

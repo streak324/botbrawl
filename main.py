@@ -2,7 +2,7 @@ import math
 import numpy
 import pymunk
 import pyglet
-import pymunk.pyglet_util
+from pymunk import pyglet_util
 from pymunk.vec2d import Vec2d
 from attack import *
 
@@ -396,7 +396,6 @@ class Fighter():
 def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data) -> bool:
 	victim: Fighter = arbiter.shapes[0].fighter
 	if victim.is_hit == False:
-		print("connected hit!")
 		victim.is_hit = True
 		cast: Cast = arbiter.shapes[1].cast
 		power: Power = arbiter.shapes[1].power
@@ -447,15 +446,16 @@ game_state = GameState()
 def step_game(_):
 	for fighter in game_state.fighters:
 		dx = 0
-		current_cast: Cast = None
 
+		attack_results: StepAttackResults
 		is_doing_action = False
 		if fighter.recover_timer == 0:
 			for attack in fighter.attacks:
-				cast, stepping = attack.step(game_state.physics_sim)
-				if not is_doing_action:
-					current_cast = cast
-				is_doing_action = is_doing_action or stepping
+				attack_results = step_attack(attack, game_state.physics_sim)
+				if attack_results.is_active and not is_doing_action:
+					print("attack {} is active".format(attack.name))
+					is_doing_action = True
+					break
 
 		# on input, move fighter to right
 		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_LEFT or fighter.input[INPUT_MOVE_LEFT] == False) and fighter.input[INPUT_MOVE_RIGHT]:
@@ -497,16 +497,16 @@ def step_game(_):
 					fighter.aerial_neutral_light_attack.activate(fighter.side_facing)
 
 		attack_velocity = (0,0)
-		if is_doing_action and current_cast != None and current_cast.is_active and current_cast.active_velocity != None:
+		if is_doing_action and attack_results.is_active and attack_results.velocity != None:
 			print("attack velocity being applied")
-			attack_velocity = current_cast.active_velocity
+			attack_velocity = attack_results.velocity
 			if fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 				attack_velocity = -attack_velocity[0], attack_velocity[1]
 		
 		if is_doing_action or fighter.recover_timer == 0:
-			fighter.body.velocity = dx + attack_velocity[0], fighter.body.velocity.y
+			fighter.body.velocity = dx + attack_velocity[0], fighter.body._get_velocity().y
 
-		fighter.body.velocity = fighter.body.velocity.x, max(fighter.body.velocity.y, -FALL_VELOCITY) + attack_velocity[1]
+		fighter.body.velocity = fighter.body._get_velocity().x, max(fighter.body._get_velocity().y, -FALL_VELOCITY) + attack_velocity[1]
 
 		if fighter.is_hit == False:
 			fighter.recover_timer = max(fighter.recover_timer-1, 0)
@@ -524,7 +524,7 @@ def on_draw():
 	# draw things here
 	game_window.clear()
 
-	physics_draw_options = pymunk.pyglet_util.DrawOptions(batch=physics_batch)
+	physics_draw_options = pyglet_util.DrawOptions(batch=physics_batch)
 	physics_draw_options.transform = pymunk.Transform.scaling(PIXELS_PER_WORLD_UNITS)
 	game_state.physics_sim.debug_draw(physics_draw_options)
 	physics_batch.draw()
