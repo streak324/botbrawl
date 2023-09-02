@@ -1,6 +1,8 @@
 roughly sorted by priority
 
-knockback direction dependent on attack
+- apply upward impulse on aerial attacks when hitting target
+
+- knockback direction dependent on attack
  o unarmed n-light 
  o unarmed d-light
  o unarmed s-light
@@ -8,6 +10,7 @@ knockback direction dependent on attack
  o unarmed air d-light
  o unarmed air s-light
 
+- add bounce affect when fighter is pushed downward from an attack
 
 - add every unarmed attack move hitbox frames
  x neutral light (no connected hits)

@@ -22,16 +22,16 @@ class TestStepAttackFunction(unittest.TestCase):
 				"attack": Attack([
 					Power(
 						casts = [
-							Cast(startup_frames=2, active_frames=2, active_velocity=(50,0)), 
-							Cast(startup_frames=3, active_frames=2, active_velocity=(100,10)),
+							Cast(startup_frames=2, active_frames=2, move_velocity=(50,0), is_velocity_on_active_frames_only=True), 
+							Cast(startup_frames=3, active_frames=2, move_velocity=(100,10), is_velocity_on_active_frames_only=True),
 							Cast(
-								startup_frames=1, active_frames=4, active_velocity=(100,0), is_active_velocity_all_frames=True, base_dmg = 13, var_force=20, fixed_force=80,
+								startup_frames=1, active_frames=4, velocity=(100,0), is_velocity_on_active_frames_only=False, base_dmg = 13, var_force=20, fixed_force=80,
 								hitbox=Hitbox( [], [], ),
 							)
 						],
 						cooldown_frames = 10, stun_frames = 18
 					), 
-					Power([Cast(startup_frames=0, active_frames=1, active_velocity=(100,0))], fixed_recovery_frames = 2, recovery_frames = 18) 
+					Power([Cast(startup_frames=0, active_frames=1, velocity=(100,0))], fixed_recovery_frames = 2, recovery_frames = 18) 
 				], name="unarmed_side_light"),
 				"number_of_trues": 12
 			},

@@ -15,7 +15,7 @@ class Cast():
 	#active_velocity is supposed to be used during active frames.
 	def __init__(
 			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
-		  	active_velocity: tuple[float, float]|None = None, is_active_velocity_all_frames: bool = False
+		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float]|None = None, self_knockback_force: tuple[float,float]|None = None,
 		):
 		self.startup_frames = startup_frames
 		self.active_frames = active_frames
@@ -24,10 +24,12 @@ class Cast():
 		self.fixed_force = fixed_force
 		self.hitbox = hitbox
 		# start velocity should be negated when attack is facing left
-		self.active_velocity = active_velocity
-		self.is_active_velocity_all_frames = is_active_velocity_all_frames
+		self.velocity = velocity
+		self.is_velocity_on_active_frames_only = is_velocity_on_active_frames_only
 		self.is_active = False
 		self.has_hit = False
+		self.knockback_dir = knockback_dir
+		self.self_knockback_force = self_knockback_force
 
 class Power():
 	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0, requires_hit: bool = False):
@@ -54,6 +56,8 @@ class Attack():
 		# recover timer should only be used between powers, where the previous power has recovery frames. if the last power has recovery frames, it should be applied to the fighter's recover timer
 		self.recover_timer = 0
 		self.side_facing = 0
+		# if true, when one of the attack's hitboxes lands on a victim, downward velocity and gravity is cancelled for both attack's fighter and victim for the duration of the attack.
+		 
 		for power in self.powers:
 			for cast in power.casts:
 				if cast.hitbox != None:
@@ -152,6 +156,6 @@ def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
 					space.add(shape)
 	
 	attack_velocity = None
-	if (current_cast.is_active or current_cast.is_active_velocity_all_frames) and current_cast.active_velocity != None:
-		attack_velocity = current_cast.active_velocity
+	if (current_cast.is_active or not current_cast.is_velocity_on_active_frames_only) and current_cast.velocity != None:
+		attack_velocity = current_cast.velocity
 	return StepAttackResults(is_active=True, velocity=attack_velocity, recover_frames=fighter_recover_frames)

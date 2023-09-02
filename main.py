@@ -85,6 +85,13 @@ def add_capsule_shape(body: pymunk.Body, offset: tuple[float,float], width: floa
 			(offset[0] + width*0.5, offset[1] + stretch_length*0.5))
 		return [c1, c2, box]
 
+def cancel_fighter_velocity_if_allowed(body: pymunk.Body, gravity: pymunk.Vec2d, damping: float, dt: float):
+	if body.is_gravity_cancelled:
+		body._set_velocity((0,0))
+		pymunk.Body.update_velocity(body, (0,0), damping, dt)
+	else:
+		pymunk.Body.update_velocity(body, gravity, damping, dt)
+	
 class Fighter():
 	def __init__(self, space: pymunk.Space, center: tuple[float, float], side_facing = consts.FIGHTER_SIDE_FACING_LEFT):
 		#hurtbox body is supposed to be the shape of a capsule: 2 circles and 1 rectangle
@@ -97,6 +104,9 @@ class Fighter():
 		self.attacks: list[Attack] = []
 		self.last_cast_id_hit: int = None
 		self.dmg_points = 0
+		self.gravity_cancel_timer: int = 0
+		self.body.is_gravity_cancelled = False
+		self.body._set_velocity_func(cancel_fighter_velocity_if_allowed)
 
 		hurtbox_filter = pymunk.ShapeFilter(
 			categories=0b1 << (HURTBOX_COLLISION_TYPE-1),
@@ -191,16 +201,16 @@ class Fighter():
 		self.side_light_attack = Attack([
 			Power(
 				casts = [
-					Cast(startup_frames=2, active_frames=2, active_velocity=(50,0)), 
-					Cast(startup_frames=3, active_frames=2, active_velocity=(100,10)),
+					Cast(startup_frames=2, active_frames=2, velocity=(50,0), is_velocity_on_active_frames_only=True), 
+					Cast(startup_frames=3, active_frames=2, velocity=(100,10), is_velocity_on_active_frames_only=True),
 					Cast(
-						startup_frames=1, active_frames=4, active_velocity=(100,0), is_active_velocity_all_frames=True, base_dmg = 13, var_force=20, fixed_force=80,
+						startup_frames=1, active_frames=4, velocity=(100,0), is_velocity_on_active_frames_only=False, base_dmg = 13, var_force=20, fixed_force=80,
 						hitbox=Hitbox( left_side_light_hitbox_shapes, right_side_light_hitbox_shapes, ),
 					)
 				],
 				cooldown_frames = 10, stun_frames = 18
 			), 
-			Power([Cast(startup_frames=0, active_frames=1, active_velocity=(100,0))], fixed_recovery_frames = 2, recovery_frames = 18) 
+			Power([Cast(startup_frames=0, active_frames=1, velocity=(100,0), is_velocity_on_active_frames_only=True)], fixed_recovery_frames = 2, recovery_frames = 18) 
 		], name="unarmed_side_light")
 
 		self.neutral_light_attack = Attack([
@@ -233,9 +243,9 @@ class Fighter():
 			),
 			Power(
 				casts = [
-					Cast(startup_frames=3, active_frames = 1, active_velocity=(1,0)),
-					Cast(startup_frames=3, active_frames = 1, active_velocity=(1,0), is_active_velocity_all_frames=True),
-					Cast(startup_frames=3, active_frames = 1, active_velocity=(1,0), is_active_velocity_all_frames=True),
+					Cast(startup_frames=3, active_frames = 1, velocity=(1,0), is_velocity_on_active_frames_only=True),
+					Cast(startup_frames=3, active_frames = 1, velocity=(1,0), is_velocity_on_active_frames_only=False),
+					Cast(startup_frames=3, active_frames = 1, velocity=(1,0), is_velocity_on_active_frames_only=False),
 					Cast(
 						startup_frames = 2, active_frames = 5, base_dmg=5, var_force=31, fixed_force=52,
 						hitbox=Hitbox(left_neutral_light_hitbox_shapes_4, right_neutral_light_hitbox_shapes_4)
@@ -250,14 +260,14 @@ class Fighter():
 			Power(
 				casts = [
 					Cast(
-						startup_frames=5, active_frames=3, active_velocity=(50,0)
+						startup_frames=5, active_frames=3, velocity=(50,0), is_velocity_on_active_frames_only=True
 					),
 					Cast(
-						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, active_velocity=(100,0),
+						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True,
 						hitbox=Hitbox(left_down_light_hitbox_shapes, right_down_light_hitbox_shapes)
 					),
 					Cast(
-						startup_frames=0,active_frames=3,active_velocity=(50,0)
+						startup_frames=0,active_frames=3, velocity=(50,0), is_velocity_on_active_frames_only=True
 					),
 				],
 				cooldown_frames = 0, stun_frames = 31
@@ -310,15 +320,15 @@ class Fighter():
 			Power(
 				casts = [
 					Cast(
-						startup_frames=13, active_frames=3, base_dmg=13, var_force=40, fixed_force=45, active_velocity=(50, 0),
+						startup_frames=13, active_frames=3, base_dmg=13, var_force=40, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
 						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_1, right_aerial_side_light_hitbox_shapes_1),
 					),
 					Cast(
-						startup_frames=0, active_frames=2, base_dmg=13, var_force=37, fixed_force=45, active_velocity=(50, 0),
+						startup_frames=0, active_frames=2, base_dmg=13, var_force=37, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
 						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_2, right_aerial_side_light_hitbox_shapes_2),
 					),
 					Cast(
-						startup_frames=0, active_frames=2, base_dmg=13, var_force=36, fixed_force=45, active_velocity=(50, 0),
+						startup_frames=0, active_frames=2, base_dmg=13, var_force=36, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
 						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_3, right_aerial_side_light_hitbox_shapes_3),
 					)
 				],
@@ -335,7 +345,7 @@ class Fighter():
 				casts = [
 					Cast(startup_frames=4, active_frames=1),
 					Cast(
-						startup_frames=4, active_frames=16, base_dmg=16, var_force=5, fixed_force=65, active_velocity=(50,-10),
+						startup_frames=4, active_frames=16, base_dmg=16, var_force=5, fixed_force=65, velocity=(50,-10), is_velocity_on_active_frames_only=True,
 						hitbox=Hitbox(left_aerial_down_light_hitbox_shapes, right_aerial_down_light_hitbox_shapes),
 					)
 				],
@@ -395,6 +405,8 @@ class Fighter():
 # function callback to used when a fighter hurtbox overlaps with hitbox. do stuff like knocking back fighter and applying damage points
 def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data) -> bool:
 	victim: Fighter = arbiter.shapes[0].fighter
+	victim_body: pymunk.Body = arbiter.shapes[0].body
+	attacker_body: pymunk.Body = arbiter.shapes[1].body
 	if victim.is_hit == False:
 		victim.is_hit = True
 		cast: Cast = arbiter.shapes[1].cast
@@ -509,6 +521,10 @@ def step_game(_):
 		if fighter.is_hit == False:
 			fighter.recover_timer = max(fighter.recover_timer-1, 0)
 		fighter.is_hit = False
+
+		fighter.gravity_cancel_timer = max(0, fighter.gravity_cancel_timer - 1)
+		if fighter.gravity_cancel_timer == 0:
+			fighter.body.is_gravity_cancelled = False
 		#input should be copied into previous input AFTER all logic needing input has been processed
 		fighter.prev_input = fighter.input.copy()
 

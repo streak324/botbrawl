@@ -1,2 +1,3 @@
+- add a cap on velocity to each fighter when being kockbacked, to avoid collision tunnelling
 - fix collision issue with going into the wall
 - fix smoothness issue on desktop
