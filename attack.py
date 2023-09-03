@@ -15,10 +15,11 @@ class Cast():
 	#active_velocity is supposed to be used during active frames.
 	def __init__(
 			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
-		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float]|None = None, self_knockback_force: tuple[float,float]|None = None,
+		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float]|None = None, self_velocity_on_hit: tuple[float,float]|None = None,
 		):
 		self.startup_frames = startup_frames
 		self.active_frames = active_frames
+		self.active_frame_counter = 0
 		self.base_dmg = base_dmg
 		self.var_force = var_force
 		self.fixed_force = fixed_force
@@ -29,7 +30,7 @@ class Cast():
 		self.is_active = False
 		self.has_hit = False
 		self.knockback_dir = knockback_dir
-		self.self_knockback_force = self_knockback_force
+		self.self_velocity_on_hit = self_velocity_on_hit
 
 class Power():
 	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0, requires_hit: bool = False):
@@ -81,6 +82,7 @@ class Attack():
 			for c in p.casts:
 				c.is_active = False
 				c.has_hit = False
+				c.active_frame_counter = 0
 
 class StepAttackResults():
 	def __init__(self, is_active: bool, velocity: tuple[float, float]|None, recover_frames: int):
@@ -154,6 +156,8 @@ def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
 			elif attack.side_facing == consts.FIGHTER_SIDE_FACING_RIGHT:
 				for shape in current_cast.hitbox.right_shapes:
 					space.add(shape)
+	if current_cast.is_active:
+		current_cast.active_frame_counter += 1
 	
 	attack_velocity = None
 	if (current_cast.is_active or not current_cast.is_velocity_on_active_frames_only) and current_cast.velocity != None:

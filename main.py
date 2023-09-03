@@ -85,9 +85,8 @@ def add_capsule_shape(body: pymunk.Body, offset: tuple[float,float], width: floa
 			(offset[0] + width*0.5, offset[1] + stretch_length*0.5))
 		return [c1, c2, box]
 
-def cancel_fighter_velocity_if_allowed(body: pymunk.Body, gravity: pymunk.Vec2d, damping: float, dt: float):
-	if body.is_gravity_cancelled:
-		body._set_velocity((0,0))
+def cancel_fighter_gravity_if_allowed(body: pymunk.Body, gravity: pymunk.Vec2d, damping: float, dt: float):
+	if body.is_gravity_cancelled_due_to_attacking:
 		pymunk.Body.update_velocity(body, (0,0), damping, dt)
 	else:
 		pymunk.Body.update_velocity(body, gravity, damping, dt)
@@ -104,9 +103,8 @@ class Fighter():
 		self.attacks: list[Attack] = []
 		self.last_cast_id_hit: int = None
 		self.dmg_points = 0
-		self.gravity_cancel_timer: int = 0
-		self.body.is_gravity_cancelled = False
-		self.body._set_velocity_func(cancel_fighter_velocity_if_allowed)
+		self.body.is_gravity_cancelled_due_to_attacking = False
+		self.body._set_velocity_func(cancel_fighter_gravity_if_allowed)
 
 		hurtbox_filter = pymunk.ShapeFilter(
 			categories=0b1 << (HURTBOX_COLLISION_TYPE-1),
@@ -286,7 +284,7 @@ class Fighter():
 			Power(
 				casts = [
 					Cast(
-						startup_frames=7, active_frames=5, base_dmg=3, fixed_force=40,
+						startup_frames=7, active_frames=5, base_dmg=3, fixed_force=40, self_velocity_on_hit=(0, 0),
 						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_1, right_aerial_neutral_light_hitbox_shapes_1),
 					),
 				],
@@ -295,7 +293,7 @@ class Fighter():
 			Power(
 				casts = [
 					Cast(
-						startup_frames=8, active_frames=5, base_dmg=3, fixed_force=40,
+						startup_frames=8, active_frames=5, base_dmg=3, fixed_force=40, self_velocity_on_hit=(0, 0),
 						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_2, right_aerial_neutral_light_hitbox_shapes_2),
 					),
 				],
@@ -304,7 +302,7 @@ class Fighter():
 			Power(
 				casts = [
 					Cast(
-						startup_frames=8, active_frames=5, base_dmg=5, var_force=37, fixed_force=71,
+						startup_frames=8, active_frames=5, base_dmg=5, var_force=37, fixed_force=71, self_velocity_on_hit=(0,0),
 						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_3, right_aerial_neutral_light_hitbox_shapes_3)
 					),
 				],
@@ -416,11 +414,20 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 		if not cast.has_hit:
 			cast.has_hit = True
 			victim.dmg_points += cast.base_dmg
+			attacker_applied_velocity = cast.self_velocity_on_hit
+			if attacker_applied_velocity != None:
+				if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+					attacker_applied_velocity = -attacker_applied_velocity[0], attacker_applied_velocity[1]
+
+				applied_vel_y = attacker_applied_velocity[1] - attacker_body.velocity.y
+				impulse = (attacker_applied_velocity[0], attacker_body.mass * applied_vel_y)
+				attacker_body.apply_impulse_at_local_point(impulse)
 			print("victim has {} damage points".format(victim.dmg_points))
 		dir = 1
 		if arbiter.shapes[1].side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 			dir = -1
 		impulse_scale = 1
+		attacker_body.is_gravity_cancelled_due_to_attacking = True
 		impulse = (cast.fixed_force + victim.dmg_points * cast.var_force * 0.01)*dir*impulse_scale, impulse_scale
 		victim.body.apply_impulse_at_local_point(impulse)
 		victim.recover_timer = power.stun_frames
@@ -522,9 +529,7 @@ def step_game(_):
 			fighter.recover_timer = max(fighter.recover_timer-1, 0)
 		fighter.is_hit = False
 
-		fighter.gravity_cancel_timer = max(0, fighter.gravity_cancel_timer - 1)
-		if fighter.gravity_cancel_timer == 0:
-			fighter.body.is_gravity_cancelled = False
+		fighter.body.is_gravity_cancelled_due_to_attacking = fighter.body.is_gravity_cancelled_due_to_attacking and attack_results.is_active
 		#input should be copied into previous input AFTER all logic needing input has been processed
 		fighter.prev_input = fighter.input.copy()
 
