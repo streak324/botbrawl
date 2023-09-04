@@ -15,7 +15,7 @@ class Cast():
 	#active_velocity is supposed to be used during active frames.
 	def __init__(
 			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
-		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float]|None = None, self_velocity_on_hit: tuple[float,float]|None = None,
+		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float] = (1,0), self_velocity_on_hit: tuple[float,float]|None = None,
 		):
 		self.startup_frames = startup_frames
 		self.active_frames = active_frames
@@ -29,7 +29,9 @@ class Cast():
 		self.is_velocity_on_active_frames_only = is_velocity_on_active_frames_only
 		self.is_active = False
 		self.has_hit = False
+		# direction of force applied on hit.
 		self.knockback_dir = knockback_dir
+		# how much velocity needs to be applied to the fighter when hit lands. gravity is also cancelled if not none.
 		self.self_velocity_on_hit = self_velocity_on_hit
 
 class Power():
@@ -47,7 +49,7 @@ class Attack():
 	def __init__(self, powers: list[Power], name: str):
 		self.has_hit = False
 		self.powers = powers
-		self.name = name 
+		self.name = name
 		self.is_active = False
 		self.cast_frame = 0
 		self.power_idx = 0
@@ -57,7 +59,6 @@ class Attack():
 		# recover timer should only be used between powers, where the previous power has recovery frames. if the last power has recovery frames, it should be applied to the fighter's recover timer
 		self.recover_timer = 0
 		self.side_facing = 0
-		# if true, when one of the attack's hitboxes lands on a victim, downward velocity and gravity is cancelled for both attack's fighter and victim for the duration of the attack.
 		 
 		for power in self.powers:
 			for cast in power.casts:

@@ -1,17 +1,5 @@
 roughly sorted by priority
 
-- apply upward impulse on aerial attacks when hitting target
-
-- knockback direction dependent on attack
- o unarmed n-light 
- o unarmed d-light
- o unarmed s-light
- o unarmed air n-light 
- o unarmed air d-light
- o unarmed air s-light
-
-- add bounce affect when fighter is pushed downward from an attack
-
 - add every unarmed attack move hitbox frames
  x neutral light (no connected hits)
  x neural light (with connected hits)
@@ -48,9 +36,22 @@ roughly sorted by priority
 - MORE SOON
 
 DONE:
-x apply cast's velocity to fighter velocity
+
+x knockback direction dependent on attack
+ x unarmed n-light 
+ x unarmed d-light
+ x unarmed s-light
+ x unarmed air n-light 
+ x unarmed air d-light
+ x unarmed air s-light
+
+x add bounce affect when fighter is pushed downward from an attack
+
+x apply upward impulse on aerial attacks when hitting target
 
 x apply damage and force to other fighter when being hit
  x force
  x force scaled by damage
  x damage points
+
+x apply cast's velocity to fighter velocity

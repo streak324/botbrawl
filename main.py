@@ -2,15 +2,12 @@ import math
 import numpy
 import pymunk
 import pyglet
+import utils
 from pymunk import pyglet_util
 from pymunk.vec2d import Vec2d
 from attack import *
 
 import consts
-
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
-SCREEN_TITLE = "Starting Template"
 
 # brawlhalla notes
 # 2560x1440p
@@ -34,11 +31,6 @@ JUMP_HEIGHT = 15
 #not sure how im going to do this one yet.
 PIXELS_PER_WORLD_UNITS = 10
 
-#world units
-HURTBOX_WIDTH = 14.4
-#world units
-HURTBOX_HEIGHT = 16
-
 FIGHTER_COLLIDER_WIDTH = 8
 FIGHTER_COLLIDER_HEIGHT = 15
 
@@ -60,30 +52,6 @@ DEVICE_CONTROLLED_FIGHTER_INDEX = 0
 wall_collision_filter = pymunk.ShapeFilter( \
 	categories=0b1 << (WALL_COLLISION_TYPE-1), \
 	mask=0b1 << (FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1))
-
-def create_pymunk_box(body: pymunk.Body, min: tuple[float,float], max: tuple[float,float], radus: float = 0):
-	return pymunk.Poly(body, [min, (max[0], min[1]), max, (min[0], max[1])], radius=0)
-
-
-def add_capsule_shape(body: pymunk.Body, offset: tuple[float,float], width: float, height: float) -> list[pymunk.Shape] :
-	if width == height:
-		return [pymunk.Circle(body, 0.5*width, offset)]
-	if width > height:
-		stretch_length = width - height
-		c1 = pymunk.Circle(body, height*0.5, offset=(offset[0] - stretch_length*0.5, offset[1]))
-		c2 = pymunk.Circle(body, height*0.5, offset=(offset[0] + stretch_length*0.5, offset[1]))
-		box = create_pymunk_box(body, 
-			(offset[0] - stretch_length*0.5, offset[1] - height*0.5), 
-			(offset[0] + stretch_length*0.5, offset[1] + height*0.5))
-		return [c1,c2,box]
-	else:
-		stretch_length = height - width
-		c1 = pymunk.Circle(body, width*0.5, offset=(offset[0], offset[1] - stretch_length*0.5))
-		c2 = pymunk.Circle(body, width*0.5, offset=(offset[0], offset[1] + stretch_length*0.5))
-		box = create_pymunk_box(body, 
-			(offset[0] - width*0.5, offset[1] - stretch_length*0.5), 
-			(offset[0] + width*0.5, offset[1] + stretch_length*0.5))
-		return [c1, c2, box]
 
 def cancel_fighter_gravity_if_allowed(body: pymunk.Body, gravity: pymunk.Vec2d, damping: float, dt: float):
 	if body.is_gravity_cancelled_due_to_attacking:
@@ -118,7 +86,7 @@ class Fighter():
 			categories=0b1 << (HITBOX_COLLISION_TYPE-1), 
 			mask=0b1 << (HURTBOX_COLLISION_TYPE-1))
 
-		hurtbox_shapes = add_capsule_shape(self.body, (0,0), HURTBOX_WIDTH, HURTBOX_HEIGHT)
+		hurtbox_shapes = utils.add_capsule_shape(self.body, (0,0), consts.HURTBOX_WIDTH, consts.HURTBOX_HEIGHT)
 		for shape in hurtbox_shapes:
 			shape.collision_type = HURTBOX_COLLISION_TYPE 
 			shape.filter = hurtbox_filter
@@ -126,7 +94,7 @@ class Fighter():
 			shape.fighter = self
 			space.add(shape)
 
-		self.wall_collider = create_pymunk_box(self.body,
+		self.wall_collider = utils.create_pymunk_box(self.body,
 			(-FIGHTER_COLLIDER_WIDTH*0.5, -FIGHTER_COLLIDER_HEIGHT*0.5-1), 
 			(FIGHTER_COLLIDER_WIDTH*0.5, FIGHTER_COLLIDER_HEIGHT*0.5-1)
 		)
@@ -137,44 +105,44 @@ class Fighter():
 
 		space.add(self.wall_collider)
 
-		left_side_light_hitbox_shapes = add_capsule_shape(self.body, (-0.5*HURTBOX_WIDTH,-1),HURTBOX_WIDTH,5)
-		right_side_light_hitbox_shapes = add_capsule_shape(self.body, (0.5*HURTBOX_WIDTH,-1),HURTBOX_WIDTH,5)
+		left_side_light_hitbox_shapes = utils.add_capsule_shape(self.body, (-0.5*consts.HURTBOX_WIDTH,-1),consts.HURTBOX_WIDTH,5)
+		right_side_light_hitbox_shapes = utils.add_capsule_shape(self.body, (0.5*consts.HURTBOX_WIDTH,-1),consts.HURTBOX_WIDTH,5)
 
-		left_neutral_light_hitbox_shapes_1 = add_capsule_shape(self.body, (-6, 0), 10, 5)
-		right_neutral_light_hitbox_shapes_1 = add_capsule_shape(self.body, (6, 0), 10, 5)
+		left_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (-6, 0), 10, 5)
+		right_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (6, 0), 10, 5)
 
-		left_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (-4, 0), 4, 4) + add_capsule_shape(self.body, (-6, 4), 8, 6)
-		right_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (4, 0), 4, 4) + add_capsule_shape(self.body, (6, 4), 8, 6)
+		left_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (-4, 0), 4, 4) + utils.add_capsule_shape(self.body, (-6, 4), 8, 6)
+		right_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (4, 0), 4, 4) + utils.add_capsule_shape(self.body, (6, 4), 8, 6)
 
-		left_neutral_light_hitbox_shapes_3 = add_capsule_shape(self.body, (-4, 0), 5, 10)
-		right_neutral_light_hitbox_shapes_3 = add_capsule_shape(self.body, (4, 0), 5, 10)
+		left_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (-4, 0), 5, 10)
+		right_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (4, 0), 5, 10)
 
-		left_neutral_light_hitbox_shapes_4 = add_capsule_shape(self.body, (-6, 0), 10, 5)
-		right_neutral_light_hitbox_shapes_4 = add_capsule_shape(self.body, (6, 0), 10, 5)
+		left_neutral_light_hitbox_shapes_4 = utils.add_capsule_shape(self.body, (-6, 0), 10, 5)
+		right_neutral_light_hitbox_shapes_4 = utils.add_capsule_shape(self.body, (6, 0), 10, 5)
 
-		left_down_light_hitbox_shapes = add_capsule_shape(self.body, (-8, -4), 10, 5)
-		right_down_light_hitbox_shapes = add_capsule_shape(self.body, (8, -4), 10, 5)
+		left_down_light_hitbox_shapes = utils.add_capsule_shape(self.body, (-8, -4), 10, 5)
+		right_down_light_hitbox_shapes = utils.add_capsule_shape(self.body, (8, -4), 10, 5)
 		
-		left_aerial_neutral_light_hitbox_shapes_1 = add_capsule_shape(self.body, (-7, 1), 5, 10)
-		right_aerial_neutral_light_hitbox_shapes_1 = add_capsule_shape(self.body, (7, 1), 5, 10)
+		left_aerial_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (-7, 1), 5, 10)
+		right_aerial_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (7, 1), 5, 10)
 
-		left_aerial_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (-7, -1), 4, 3) + add_capsule_shape(self.body, (-9, 2), 8, 4)
-		right_aerial_neutral_light_hitbox_shapes_2 = add_capsule_shape(self.body, (7, -1), 4, 3) + add_capsule_shape(self.body, (9, 2), 8, 4)
+		left_aerial_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (-7, -1), 4, 3) + utils.add_capsule_shape(self.body, (-9, 2), 8, 4)
+		right_aerial_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (7, -1), 4, 3) + utils.add_capsule_shape(self.body, (9, 2), 8, 4)
 
-		left_aerial_neutral_light_hitbox_shapes_3 = add_capsule_shape(self.body, (-4, 0), 10, 5)
-		right_aerial_neutral_light_hitbox_shapes_3 = add_capsule_shape(self.body, (4, 0), 10, 5)
+		left_aerial_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (-4, 0), 10, 5)
+		right_aerial_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (4, 0), 10, 5)
 
-		left_aerial_side_light_hitbox_shapes_1 = add_capsule_shape(self.body, (-8, -2), 6, 3) + add_capsule_shape(self.body, (-10, -4), 4, 3)
-		right_aerial_side_light_hitbox_shapes_1 = add_capsule_shape(self.body, (8, -2), 6, 3) + add_capsule_shape(self.body, (10, -4), 4, 3)
+		left_aerial_side_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (-8, -2), 6, 3) + utils.add_capsule_shape(self.body, (-10, -4), 4, 3)
+		right_aerial_side_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (8, -2), 6, 3) + utils.add_capsule_shape(self.body, (10, -4), 4, 3)
 
-		left_aerial_side_light_hitbox_shapes_2 = add_capsule_shape(self.body, (-9, -2), 4, 3) + add_capsule_shape(self.body, (-10, -4), 4, 3)
-		right_aerial_side_light_hitbox_shapes_2 = add_capsule_shape(self.body, (9, -2), 4, 3) + add_capsule_shape(self.body, (10, -4), 4, 3)
+		left_aerial_side_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (-9, -2), 4, 3) + utils.add_capsule_shape(self.body, (-10, -4), 4, 3)
+		right_aerial_side_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (9, -2), 4, 3) + utils.add_capsule_shape(self.body, (10, -4), 4, 3)
 
-		left_aerial_side_light_hitbox_shapes_3 = add_capsule_shape(self.body, (-12, -5), 2, 2)
-		right_aerial_side_light_hitbox_shapes_3 = add_capsule_shape(self.body, (12, -5), 2, 2)
+		left_aerial_side_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (-12, -5), 2, 2)
+		right_aerial_side_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (12, -5), 2, 2)
 
-		left_aerial_down_light_hitbox_shapes = add_capsule_shape(self.body, (-5, -4), 2, 3) + add_capsule_shape(self.body, (-6, -6), 3, 4)
-		right_aerial_down_light_hitbox_shapes = add_capsule_shape(self.body, (5, -4), 2, 3) + add_capsule_shape(self.body, (6, -6), 3, 4)
+		left_aerial_down_light_hitbox_shapes = utils.add_capsule_shape(self.body, (-5, -4), 2, 3) + utils.add_capsule_shape(self.body, (-6, -6), 3, 4)
+		right_aerial_down_light_hitbox_shapes = utils.add_capsule_shape(self.body, (5, -4), 2, 3) + utils.add_capsule_shape(self.body, (6, -6), 3, 4)
 
 		#NOTE: add all hitboxes into this loop
 		for shape in (left_side_light_hitbox_shapes + right_side_light_hitbox_shapes 
@@ -261,7 +229,7 @@ class Fighter():
 						startup_frames=5, active_frames=3, velocity=(50,0), is_velocity_on_active_frames_only=True
 					),
 					Cast(
-						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True,
+						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True, knockback_dir=(0,1),
 						hitbox=Hitbox(left_down_light_hitbox_shapes, right_down_light_hitbox_shapes)
 					),
 					Cast(
@@ -343,7 +311,7 @@ class Fighter():
 				casts = [
 					Cast(startup_frames=4, active_frames=1),
 					Cast(
-						startup_frames=4, active_frames=16, base_dmg=16, var_force=5, fixed_force=65, velocity=(50,-10), is_velocity_on_active_frames_only=True,
+						startup_frames=4, active_frames=16, base_dmg=16, var_force=5, fixed_force=65, velocity=(50,-10), is_velocity_on_active_frames_only=True, knockback_dir=(0.71,0.71),
 						hitbox=Hitbox(left_aerial_down_light_hitbox_shapes, right_aerial_down_light_hitbox_shapes),
 					)
 				],
@@ -423,12 +391,13 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 				impulse = (attacker_applied_velocity[0], attacker_body.mass * applied_vel_y)
 				attacker_body.apply_impulse_at_local_point(impulse)
 			print("victim has {} damage points".format(victim.dmg_points))
-		dir = 1
+		knockback_dir = cast.knockback_dir
 		if arbiter.shapes[1].side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
-			dir = -1
+			knockback_dir = -knockback_dir[0], knockback_dir[1]
 		impulse_scale = 1
 		attacker_body.is_gravity_cancelled_due_to_attacking = True
-		impulse = (cast.fixed_force + victim.dmg_points * cast.var_force * 0.01)*dir*impulse_scale, impulse_scale
+		knockback_scale = (cast.fixed_force + victim.dmg_points * cast.var_force * 0.05)
+		impulse = knockback_scale*knockback_dir[0]*impulse_scale, knockback_scale*knockback_dir[1]*impulse_scale
 		victim.body.apply_impulse_at_local_point(impulse)
 		victim.recover_timer = power.stun_frames
 	
@@ -441,15 +410,15 @@ class GameState():
 		self.fighters = [Fighter(self.physics_sim, (30,100)), Fighter(self.physics_sim, (70, 100))]
 
 		wall_body = pymunk.Body(body_type=pymunk.Body.STATIC)
-		p1 = create_pymunk_box(wall_body, (10, 10), (120,30))
+		p1 = utils.create_pymunk_box(wall_body, (10, 10), (120,30))
 		p1.collision_type = WALL_COLLISION_TYPE
 		p1.filter = wall_collision_filter
 		p1.friction = 1
-		p2 = create_pymunk_box(wall_body, (10, 10), (20,100))
+		p2 = utils.create_pymunk_box(wall_body, (10, 10), (20,100))
 		p2.collision_type = WALL_COLLISION_TYPE
 		p2.filter = wall_collision_filter
 		#p2.friction = 1
-		p3 = create_pymunk_box(wall_body, (110, 30), (120,100))
+		p3 = utils.create_pymunk_box(wall_body, (110, 30), (120,100))
 		p3.collision_type = WALL_COLLISION_TYPE
 		p3.filter = wall_collision_filter
 		#p3.friction = 1
