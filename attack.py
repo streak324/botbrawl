@@ -15,7 +15,8 @@ class Cast():
 	#active_velocity is supposed to be used during active frames.
 	def __init__(
 			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
-		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float] = (1,0), self_velocity_on_hit: tuple[float,float]|None = None,
+		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float] = (1,0), 
+			self_velocity_on_hit: tuple[float,float]|None = None, should_cancel_victim_velocity_on_hit_until_next_hit_in_attack: bool = False
 		):
 		self.startup_frames = startup_frames
 		self.active_frames = active_frames
@@ -33,9 +34,13 @@ class Cast():
 		self.knockback_dir = knockback_dir
 		# how much velocity needs to be applied to the fighter when hit lands. gravity is also cancelled if not none.
 		self.self_velocity_on_hit = self_velocity_on_hit
+		self.should_cancel_victim_velocity_on_hit_until_next_hit_in_attack = should_cancel_victim_velocity_on_hit_until_next_hit_in_attack
 
 class Power():
-	def __init__(self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0, requires_hit: bool = False):
+	def __init__(
+			self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0, 
+			requires_hit: bool = False, requires_no_hit: bool = False, cancel_power_on_hit: bool = False
+		):
 		self.casts = casts
 		self.cooldown_frames = cooldown_frames
 		self.fixed_recovery_frames = fixed_recovery_frames
@@ -43,6 +48,8 @@ class Power():
 		self.min_charge_frames = min_charge_frames
 		self.stun_frames = stun_frames
 		self.requires_hit = requires_hit
+		self.requires_no_hit = requires_no_hit
+		self.cancel_power_on_hit = cancel_power_on_hit
 		self.is_active = False
 
 class Attack():
@@ -59,6 +66,7 @@ class Attack():
 		# recover timer should only be used between powers, where the previous power has recovery frames. if the last power has recovery frames, it should be applied to the fighter's recover timer
 		self.recover_timer = 0
 		self.side_facing = 0
+		self.is_victim_velocity_cancelled_until_next_hit = False
 		 
 		for power in self.powers:
 			for cast in power.casts:
@@ -78,6 +86,7 @@ class Attack():
 		self.cooldown_timer = 0
 		self.recover_timer = 0
 		self.has_hit = False
+		self.is_victim_velocity_cancelled_until_next_hit = False
 		for p in self.powers:
 			p.is_active = False
 			for c in p.casts:
@@ -104,7 +113,7 @@ def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
 	
 	attack.cast_frame += 1
 	# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
-	is_cast_finished = attack.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames)
+	is_cast_finished = (current_power.cancel_power_on_hit and attack.has_hit) or attack.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames)
 	if is_cast_finished:
 		if current_cast.hitbox != None:
 			if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
@@ -123,6 +132,8 @@ def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
 				if idx < attack.power_idx:
 					continue
 				if power.requires_hit and not attack.has_hit:
+					continue
+				if power.requires_no_hit and attack.has_hit:
 					continue
 				current_power = power
 				attack.power_idx = idx

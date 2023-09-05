@@ -14,6 +14,7 @@ import consts
 # sprites are 176px image
 # hitbox is a capsule. dimensions are  144 width, 160 px height. 145px diameter
 # hitbox above ~8-10px above sprite's feet
+# unable to reproduce exact attacks, hitboxes, hurtboxes, and knockbacks in brawlhalla.
 
 INPUT_MOVE_LEFT = 0
 INPUT_MOVE_RIGHT = 1
@@ -54,7 +55,7 @@ wall_collision_filter = pymunk.ShapeFilter( \
 	mask=0b1 << (FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1))
 
 def cancel_fighter_gravity_if_allowed(body: pymunk.Body, gravity: pymunk.Vec2d, damping: float, dt: float):
-	if body.is_gravity_cancelled_due_to_attacking:
+	if body.is_gravity_cancelled_until_attacker_done or body.is_gravity_cancelled_due_to_attacking:
 		pymunk.Body.update_velocity(body, (0,0), damping, dt)
 	else:
 		pymunk.Body.update_velocity(body, gravity, damping, dt)
@@ -68,10 +69,12 @@ class Fighter():
 		self.body = pymunk.Body(mass=5, moment=float("inf"))
 		self.body._set_position(center)
 		space.add(self.body)
+		space.damping = 0.9
 		self.attacks: list[Attack] = []
 		self.last_cast_id_hit: int = None
 		self.dmg_points = 0
 		self.body.is_gravity_cancelled_due_to_attacking = False
+		self.body.is_gravity_cancelled_until_attacker_done = False
 		self.body._set_velocity_func(cancel_fighter_gravity_if_allowed)
 
 		hurtbox_filter = pymunk.ShapeFilter(
@@ -229,14 +232,14 @@ class Fighter():
 						startup_frames=5, active_frames=3, velocity=(50,0), is_velocity_on_active_frames_only=True
 					),
 					Cast(
-						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True, knockback_dir=(0,1),
+						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True, knockback_dir=(0.05,0.95),
 						hitbox=Hitbox(left_down_light_hitbox_shapes, right_down_light_hitbox_shapes)
 					),
 					Cast(
 						startup_frames=0,active_frames=3, velocity=(50,0), is_velocity_on_active_frames_only=True
 					),
 				],
-				cooldown_frames = 0, stun_frames = 31
+				cooldown_frames = 0, stun_frames = 31, cancel_power_on_hit=True,
 			),
 			Power(
 				casts = [
@@ -244,15 +247,23 @@ class Fighter():
 						startup_frames=0, active_frames=4
 					),
 				],
-				fixed_recovery_frames=1, recovery_frames=13
-			)
+				fixed_recovery_frames=1, recovery_frames=13, requires_no_hit=True
+			),
+			Power(
+				casts = [
+					Cast(
+						startup_frames=0, active_frames=2
+					),
+				],
+				fixed_recovery_frames=1, requires_hit=True,
+			),
 		], name="unarmed_down_light")
 
 		self.aerial_neutral_light_attack = Attack([
 			Power(
 				casts = [
 					Cast(
-						startup_frames=7, active_frames=5, base_dmg=3, fixed_force=40, self_velocity_on_hit=(0, 0),
+						startup_frames=7, active_frames=5, base_dmg=3, fixed_force=40, self_velocity_on_hit=(0, 0), knockback_dir=(0,1),
 						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_1, right_aerial_neutral_light_hitbox_shapes_1),
 					),
 				],
@@ -261,7 +272,9 @@ class Fighter():
 			Power(
 				casts = [
 					Cast(
-						startup_frames=8, active_frames=5, base_dmg=3, fixed_force=40, self_velocity_on_hit=(0, 0),
+						# fixed force is 40, according to brawlhalla.
+						# however, unable to replicate the exact fixed force in brawlhalla, because somehow the knockback from this cast is lower than the previous cast in brawhalla, with the same force.
+						startup_frames=8, active_frames=5, base_dmg=3, self_velocity_on_hit=(0, 0), knockback_dir=(0, 1), should_cancel_victim_velocity_on_hit_until_next_hit_in_attack = True,
 						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_2, right_aerial_neutral_light_hitbox_shapes_2),
 					),
 				],
@@ -379,27 +392,38 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 		power: Power = arbiter.shapes[1].power
 		attack: Attack = arbiter.shapes[1].attack
 		attack.has_hit = True
+		victim.recover_timer = power.stun_frames
 		if not cast.has_hit:
 			cast.has_hit = True
 			victim.dmg_points += cast.base_dmg
+			print("victim has {} damage points".format(victim.dmg_points))
+
 			attacker_applied_velocity = cast.self_velocity_on_hit
+			if cast.should_cancel_victim_velocity_on_hit_until_next_hit_in_attack:
+				victim_body.is_gravity_cancelled_until_attacker_done = True
+				attack.is_victim_velocity_cancelled_until_next_hit = True
+				impulse = (-victim_body.mass * victim_body.velocity[0], -victim_body.mass * victim_body.velocity[1])
+				victim_body.apply_impulse_at_local_point(impulse)
+			elif attack.is_victim_velocity_cancelled_until_next_hit:
+				victim_body.is_gravity_cancelled_until_attacker_done = False
+				attack.is_victim_velocity_cancelled_until_next_hit = False
+
 			if attacker_applied_velocity != None:
+				attacker_body.is_gravity_cancelled_due_to_attacking = True
 				if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 					attacker_applied_velocity = -attacker_applied_velocity[0], attacker_applied_velocity[1]
-
 				applied_vel_y = attacker_applied_velocity[1] - attacker_body.velocity.y
-				impulse = (attacker_applied_velocity[0], attacker_body.mass * applied_vel_y)
+				impulse = (attacker_body.mass * attacker_applied_velocity[0], attacker_body.mass * applied_vel_y)
 				attacker_body.apply_impulse_at_local_point(impulse)
-			print("victim has {} damage points".format(victim.dmg_points))
-		knockback_dir = cast.knockback_dir
-		if arbiter.shapes[1].side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
-			knockback_dir = -knockback_dir[0], knockback_dir[1]
-		impulse_scale = 1
-		attacker_body.is_gravity_cancelled_due_to_attacking = True
-		knockback_scale = (cast.fixed_force + victim.dmg_points * cast.var_force * 0.05)
-		impulse = knockback_scale*knockback_dir[0]*impulse_scale, knockback_scale*knockback_dir[1]*impulse_scale
-		victim.body.apply_impulse_at_local_point(impulse)
-		victim.recover_timer = power.stun_frames
+
+			knockback_dir = cast.knockback_dir
+			if arbiter.shapes[1].side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
+				knockback_dir = -knockback_dir[0], knockback_dir[1]
+			fixed_impulse_scale = 10
+			var_impulse_scale = 0.1
+			knockback_scale = (fixed_impulse_scale * cast.fixed_force + victim.dmg_points * cast.var_force * var_impulse_scale)
+			impulse = knockback_scale*knockback_dir[0], knockback_scale*knockback_dir[1]
+			victim.body.apply_impulse_at_local_point(impulse)
 	
 	return True
 
