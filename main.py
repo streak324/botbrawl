@@ -6,6 +6,8 @@ import utils
 from pymunk import pyglet_util
 from pymunk.vec2d import Vec2d
 from attack import *
+import attack_moves
+import input
 
 import consts
 
@@ -16,21 +18,12 @@ import consts
 # hitbox above ~8-10px above sprite's feet
 # unable to reproduce exact attacks, hitboxes, hurtboxes, and knockbacks in brawlhalla.
 
-INPUT_MOVE_LEFT = 0
-INPUT_MOVE_RIGHT = 1
-INPUT_MOVE_DOWN = 2
-INPUT_JUMP = 3
-INPUT_DODGE = 4
-INPUT_HEAVY_HIT = 5
-INPUT_LIGHT_HIT = 6
-INPUT_THROW = 7
-
 TOTAL_MIDAIR_JUMPS_ALLOWED = 2
 
 JUMP_HEIGHT = 15
 
 #not sure how im going to do this one yet.
-PIXELS_PER_WORLD_UNITS = 10
+PIXELS_PER_WORLD_UNITS = 8
 
 FIGHTER_COLLIDER_WIDTH = 8
 FIGHTER_COLLIDER_HEIGHT = 15
@@ -40,19 +33,14 @@ HURTBOX_COLOR = (171, 174, 105, 128)
 FRAMES_PER_SECOND = 60
 TIMESTEP = 1/FRAMES_PER_SECOND
 
-HURTBOX_COLLISION_TYPE = 1
-HITBOX_COLLISION_TYPE = 2
-WALL_COLLISION_TYPE = 3
-FIGHTER_WALL_COLLIDER_COLLISION_TYPE = 4
-
 FALL_VELOCITY = 80.0
 
 DEVICE_CONTROLLED_FIGHTER_INDEX = 0
 
 
 wall_collision_filter = pymunk.ShapeFilter( \
-	categories=0b1 << (WALL_COLLISION_TYPE-1), \
-	mask=0b1 << (FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1))
+	categories=0b1 << (consts.WALL_COLLISION_TYPE-1), \
+	mask=0b1 << (consts.FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1))
 
 def cancel_fighter_gravity_if_allowed(body: pymunk.Body, gravity: pymunk.Vec2d, damping: float, dt: float):
 	if body.is_gravity_cancelled_until_attacker_done or body.is_gravity_cancelled_due_to_attacking:
@@ -64,8 +52,7 @@ class Fighter():
 	def __init__(self, space: pymunk.Space, center: tuple[float, float], side_facing = consts.FIGHTER_SIDE_FACING_LEFT):
 		#hurtbox body is supposed to be the shape of a capsule: 2 circles and 1 rectangle
 		self.side_facing = side_facing
-		self.input = numpy.zeros(8)
-		self.prev_input = numpy.zeros(8)
+		self.input = input.Input()
 		self.body = pymunk.Body(mass=5, moment=float("inf"))
 		self.body._set_position(center)
 		space.add(self.body)
@@ -78,20 +65,16 @@ class Fighter():
 		self.body._set_velocity_func(cancel_fighter_gravity_if_allowed)
 
 		hurtbox_filter = pymunk.ShapeFilter(
-			categories=0b1 << (HURTBOX_COLLISION_TYPE-1),
-			mask=0b1 << (HITBOX_COLLISION_TYPE-1))
+			categories=0b1 << (consts.HURTBOX_COLLISION_TYPE-1),
+			mask=0b1 << (consts.HITBOX_COLLISION_TYPE-1))
 
 		wall_collider_filter = pymunk.ShapeFilter(
-			categories=0b1 << (FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1),
-			mask=0b1 << (WALL_COLLISION_TYPE-1))
-
-		hitbox_filter = pymunk.ShapeFilter(
-			categories=0b1 << (HITBOX_COLLISION_TYPE-1), 
-			mask=0b1 << (HURTBOX_COLLISION_TYPE-1))
+			categories=0b1 << (consts.FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1),
+			mask=0b1 << (consts.WALL_COLLISION_TYPE-1))
 
 		hurtbox_shapes = utils.add_capsule_shape(self.body, (0,0), consts.HURTBOX_WIDTH, consts.HURTBOX_HEIGHT)
 		for shape in hurtbox_shapes:
-			shape.collision_type = HURTBOX_COLLISION_TYPE 
+			shape.collision_type = consts.HURTBOX_COLLISION_TYPE 
 			shape.filter = hurtbox_filter
 			shape.sensor = True
 			shape.fighter = self
@@ -101,249 +84,15 @@ class Fighter():
 			(-FIGHTER_COLLIDER_WIDTH*0.5, -FIGHTER_COLLIDER_HEIGHT*0.5-1), 
 			(FIGHTER_COLLIDER_WIDTH*0.5, FIGHTER_COLLIDER_HEIGHT*0.5-1)
 		)
-		self.wall_collider.collision_type = FIGHTER_WALL_COLLIDER_COLLISION_TYPE
+		self.wall_collider.collision_type = consts.FIGHTER_WALL_COLLIDER_COLLISION_TYPE
 		self.wall_collider.filter = wall_collider_filter
 		self.wall_collider.friction = 1
 		self.wall_collider.color = (255, 233, 28, 100)
 
 		space.add(self.wall_collider)
 
-		left_side_light_hitbox_shapes = utils.add_capsule_shape(self.body, (-0.5*consts.HURTBOX_WIDTH,-1),consts.HURTBOX_WIDTH,5)
-		right_side_light_hitbox_shapes = utils.add_capsule_shape(self.body, (0.5*consts.HURTBOX_WIDTH,-1),consts.HURTBOX_WIDTH,5)
-
-		left_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (-6, 0), 10, 5)
-		right_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (6, 0), 10, 5)
-
-		left_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (-4, 0), 4, 4) + utils.add_capsule_shape(self.body, (-6, 4), 8, 6)
-		right_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (4, 0), 4, 4) + utils.add_capsule_shape(self.body, (6, 4), 8, 6)
-
-		left_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (-4, 0), 5, 10)
-		right_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (4, 0), 5, 10)
-
-		left_neutral_light_hitbox_shapes_4 = utils.add_capsule_shape(self.body, (-6, 0), 10, 5)
-		right_neutral_light_hitbox_shapes_4 = utils.add_capsule_shape(self.body, (6, 0), 10, 5)
-
-		left_down_light_hitbox_shapes = utils.add_capsule_shape(self.body, (-8, -4), 10, 5)
-		right_down_light_hitbox_shapes = utils.add_capsule_shape(self.body, (8, -4), 10, 5)
-		
-		left_aerial_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (-7, 1), 5, 10)
-		right_aerial_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (7, 1), 5, 10)
-
-		left_aerial_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (-7, -1), 4, 3) + utils.add_capsule_shape(self.body, (-9, 2), 8, 4)
-		right_aerial_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (7, -1), 4, 3) + utils.add_capsule_shape(self.body, (9, 2), 8, 4)
-
-		left_aerial_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (-4, 0), 10, 5)
-		right_aerial_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (4, 0), 10, 5)
-
-		left_aerial_side_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (-8, -2), 6, 3) + utils.add_capsule_shape(self.body, (-10, -4), 4, 3)
-		right_aerial_side_light_hitbox_shapes_1 = utils.add_capsule_shape(self.body, (8, -2), 6, 3) + utils.add_capsule_shape(self.body, (10, -4), 4, 3)
-
-		left_aerial_side_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (-9, -2), 4, 3) + utils.add_capsule_shape(self.body, (-10, -4), 4, 3)
-		right_aerial_side_light_hitbox_shapes_2 = utils.add_capsule_shape(self.body, (9, -2), 4, 3) + utils.add_capsule_shape(self.body, (10, -4), 4, 3)
-
-		left_aerial_side_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (-12, -5), 2, 2)
-		right_aerial_side_light_hitbox_shapes_3 = utils.add_capsule_shape(self.body, (12, -5), 2, 2)
-
-		left_aerial_down_light_hitbox_shapes = utils.add_capsule_shape(self.body, (-5, -4), 2, 3) + utils.add_capsule_shape(self.body, (-6, -6), 3, 4)
-		right_aerial_down_light_hitbox_shapes = utils.add_capsule_shape(self.body, (5, -4), 2, 3) + utils.add_capsule_shape(self.body, (6, -6), 3, 4)
-
-		#NOTE: add all hitboxes into this loop
-		for shape in (left_side_light_hitbox_shapes + right_side_light_hitbox_shapes 
-			+ left_neutral_light_hitbox_shapes_1 + right_neutral_light_hitbox_shapes_1 
-			+ left_neutral_light_hitbox_shapes_2 + right_neutral_light_hitbox_shapes_2
-			+ left_neutral_light_hitbox_shapes_3 + right_neutral_light_hitbox_shapes_3 
-			+ left_neutral_light_hitbox_shapes_4 + right_neutral_light_hitbox_shapes_4 
-			+ left_down_light_hitbox_shapes + right_down_light_hitbox_shapes
-			+ left_aerial_neutral_light_hitbox_shapes_1 + right_aerial_neutral_light_hitbox_shapes_1
-			+ left_aerial_neutral_light_hitbox_shapes_2 + right_aerial_neutral_light_hitbox_shapes_2
-			+ left_aerial_neutral_light_hitbox_shapes_3 + right_aerial_neutral_light_hitbox_shapes_3
-			+ left_aerial_side_light_hitbox_shapes_1 + right_aerial_side_light_hitbox_shapes_1
-			+ left_aerial_side_light_hitbox_shapes_2 + right_aerial_side_light_hitbox_shapes_2
-			+ left_aerial_side_light_hitbox_shapes_3 + right_aerial_side_light_hitbox_shapes_3
-			+ left_aerial_down_light_hitbox_shapes + right_aerial_down_light_hitbox_shapes
-			):
-			shape.collision_type = HITBOX_COLLISION_TYPE	
-			shape.filter = hitbox_filter
-			shape.sensor = True
-			shape.color = (128, 0, 0, 255)
-
-		self.side_light_attack = Attack([
-			Power(
-				casts = [
-					Cast(startup_frames=2, active_frames=2, velocity=(50,0), is_velocity_on_active_frames_only=True), 
-					Cast(startup_frames=3, active_frames=2, velocity=(100,10), is_velocity_on_active_frames_only=True),
-					Cast(
-						startup_frames=1, active_frames=4, velocity=(100,0), is_velocity_on_active_frames_only=False, base_dmg = 13, var_force=20, fixed_force=80,
-						hitbox=Hitbox( left_side_light_hitbox_shapes, right_side_light_hitbox_shapes, ),
-					)
-				],
-				cooldown_frames = 10, stun_frames = 18
-			), 
-			Power([Cast(startup_frames=0, active_frames=1, velocity=(100,0), is_velocity_on_active_frames_only=True)], fixed_recovery_frames = 2, recovery_frames = 18) 
-		], name="unarmed_side_light")
-
-		self.neutral_light_attack = Attack([
-			Power(
-				casts = [
-					Cast(
-						startup_frames = 5,	active_frames = 3, base_dmg=3, fixed_force=25,
-						hitbox=Hitbox(left_neutral_light_hitbox_shapes_1, right_neutral_light_hitbox_shapes_1),
-					),
-				],
-				recovery_frames = 3, cooldown_frames = 16, stun_frames = 17
-			),
-			Power(
-				casts = [
-					Cast(
-						startup_frames = 6, active_frames = 6, base_dmg=3, fixed_force=20,
-						hitbox=Hitbox(left_neutral_light_hitbox_shapes_2, right_neutral_light_hitbox_shapes_2),
-					),
-				],
-				recovery_frames = 0, cooldown_frames = 0, stun_frames = 17
-			),
-			Power(
-				casts = [
-					Cast(
-						startup_frames = 6, active_frames = 3, base_dmg = 3, fixed_force = 25,
-						hitbox=Hitbox(left_neutral_light_hitbox_shapes_3, right_neutral_light_hitbox_shapes_3),
-					),
-				],
-				recovery_frames = 3, stun_frames = 20, requires_hit = True
-			),
-			Power(
-				casts = [
-					Cast(startup_frames=3, active_frames = 1, velocity=(1,0), is_velocity_on_active_frames_only=True),
-					Cast(startup_frames=3, active_frames = 1, velocity=(1,0), is_velocity_on_active_frames_only=False),
-					Cast(startup_frames=3, active_frames = 1, velocity=(1,0), is_velocity_on_active_frames_only=False),
-					Cast(
-						startup_frames = 2, active_frames = 5, base_dmg=5, var_force=31, fixed_force=52,
-						hitbox=Hitbox(left_neutral_light_hitbox_shapes_4, right_neutral_light_hitbox_shapes_4)
-					),
-				],
-				recovery_frames = 22, stun_frames = 23, requires_hit = True
-			),
-			Power([Cast(startup_frames = 0, active_frames=1)], fixed_recovery_frames=2, recovery_frames=9),
-		], name="unarmed_neutral_light")
-
-		self.down_light_attack = Attack([
-			Power(
-				casts = [
-					Cast(
-						startup_frames=5, active_frames=3, velocity=(50,0), is_velocity_on_active_frames_only=True
-					),
-					Cast(
-						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True, knockback_dir=(0.05,0.95),
-						hitbox=Hitbox(left_down_light_hitbox_shapes, right_down_light_hitbox_shapes)
-					),
-					Cast(
-						startup_frames=0,active_frames=3, velocity=(50,0), is_velocity_on_active_frames_only=True
-					),
-				],
-				cooldown_frames = 0, stun_frames = 31, cancel_power_on_hit=True,
-			),
-			Power(
-				casts = [
-					Cast(
-						startup_frames=0, active_frames=4
-					),
-				],
-				fixed_recovery_frames=1, recovery_frames=13, requires_no_hit=True
-			),
-			Power(
-				casts = [
-					Cast(
-						startup_frames=0, active_frames=2
-					),
-				],
-				fixed_recovery_frames=1, requires_hit=True,
-			),
-		], name="unarmed_down_light")
-
-		self.aerial_neutral_light_attack = Attack([
-			Power(
-				casts = [
-					Cast(
-						startup_frames=7, active_frames=5, base_dmg=3, fixed_force=40, self_velocity_on_hit=(0, 0), knockback_dir=(0,1),
-						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_1, right_aerial_neutral_light_hitbox_shapes_1),
-					),
-				],
-				cooldown_frames=7, stun_frames=17
-			),
-			Power(
-				casts = [
-					Cast(
-						# fixed force is 40, according to brawlhalla.
-						# however, unable to replicate the exact fixed force in brawlhalla, because somehow the knockback from this cast is lower than the previous cast in brawhalla, with the same force.
-						startup_frames=8, active_frames=5, base_dmg=3, self_velocity_on_hit=(0, 0), knockback_dir=(0, 1), should_cancel_victim_velocity_on_hit_until_next_hit_in_attack = True,
-						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_2, right_aerial_neutral_light_hitbox_shapes_2),
-					),
-				],
-				recovery_frames=4, stun_frames=21
-			),
-			Power(
-				casts = [
-					Cast(
-						startup_frames=8, active_frames=5, base_dmg=5, var_force=37, fixed_force=71, self_velocity_on_hit=(0,0),
-						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_3, right_aerial_neutral_light_hitbox_shapes_3)
-					),
-				],
-				recovery_frames=22, stun_frames=19, requires_hit=True,
-			),
-			Power(
-				casts = [ Cast( startup_frames=0, active_frames=1) ],
-				fixed_recovery_frames=1, recovery_frames=15, cooldown_frames=0,
-			),
-		], name="unarmed_aerial_neutral_light")
-
-		self.aerial_side_light_attack = Attack([
-			Power(
-				casts = [
-					Cast(
-						startup_frames=13, active_frames=3, base_dmg=13, var_force=40, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
-						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_1, right_aerial_side_light_hitbox_shapes_1),
-					),
-					Cast(
-						startup_frames=0, active_frames=2, base_dmg=13, var_force=37, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
-						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_2, right_aerial_side_light_hitbox_shapes_2),
-					),
-					Cast(
-						startup_frames=0, active_frames=2, base_dmg=13, var_force=36, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
-						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_3, right_aerial_side_light_hitbox_shapes_3),
-					)
-				],
-				cooldown_frames=14, stun_frames=17,
-			),
-			Power(
-				casts = [ Cast(startup_frames=0, active_frames=1) ],
-				fixed_recovery_frames=5, recovery_frames=17
-			),
-		], name="unarmed_aerial_side_light")
-
-		self.aerial_down_light_attack = Attack([
-			Power(
-				casts = [
-					Cast(startup_frames=4, active_frames=1),
-					Cast(
-						startup_frames=4, active_frames=16, base_dmg=16, var_force=5, fixed_force=65, velocity=(50,-10), is_velocity_on_active_frames_only=True, knockback_dir=(0.71,0.71),
-						hitbox=Hitbox(left_aerial_down_light_hitbox_shapes, right_aerial_down_light_hitbox_shapes),
-					)
-				],
-				cooldown_frames=9, stun_frames=19
-			),
-			Power(
-				casts = [
-					Cast(startup_frames=4, active_frames=1),
-				],
-			),
-		], name="unarmed_aerial_down_light")
-
 		#NOTE: add all attacks in here
-		self.attacks.append(self.side_light_attack)
-		self.attacks.append(self.neutral_light_attack)
-		self.attacks.append(self.down_light_attack)
-		self.attacks.append(self.aerial_neutral_light_attack)
-		self.attacks.append(self.aerial_side_light_attack)
-		self.attacks.append(self.aerial_down_light_attack)
+		self.attacks += attack_moves.add_unarmed_moves(self.body)
 
 		self.midair_jumps_left = 0
 		self.is_grounded = False
@@ -377,9 +126,6 @@ class Fighter():
 		if grounding["body"] != None:# and abs(grounding["normal"].x / grounding["normal"].y) < feet.friction:
 			self.is_grounded = True
 			self.midair_jumps_left = TOTAL_MIDAIR_JUMPS_ALLOWED
-
-	def is_input_tapped(self, input_index: int) -> bool:
-		return self.input[input_index] and self.prev_input[input_index] == False
 
 # function callback to used when a fighter hurtbox overlaps with hitbox. do stuff like knocking back fighter and applying damage points
 def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data) -> bool:
@@ -419,7 +165,7 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 			knockback_dir = cast.knockback_dir
 			if arbiter.shapes[1].side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
 				knockback_dir = -knockback_dir[0], knockback_dir[1]
-			fixed_impulse_scale = 10
+			fixed_impulse_scale = 5
 			var_impulse_scale = 0.1
 			knockback_scale = (fixed_impulse_scale * cast.fixed_force + victim.dmg_points * cast.var_force * var_impulse_scale)
 			impulse = knockback_scale*knockback_dir[0], knockback_scale*knockback_dir[1]
@@ -435,20 +181,20 @@ class GameState():
 
 		wall_body = pymunk.Body(body_type=pymunk.Body.STATIC)
 		p1 = utils.create_pymunk_box(wall_body, (10, 10), (120,30))
-		p1.collision_type = WALL_COLLISION_TYPE
+		p1.collision_type = consts.WALL_COLLISION_TYPE
 		p1.filter = wall_collision_filter
 		p1.friction = 1
 		p2 = utils.create_pymunk_box(wall_body, (10, 10), (20,100))
-		p2.collision_type = WALL_COLLISION_TYPE
+		p2.collision_type = consts.WALL_COLLISION_TYPE
 		p2.filter = wall_collision_filter
 		#p2.friction = 1
 		p3 = utils.create_pymunk_box(wall_body, (110, 30), (120,100))
-		p3.collision_type = WALL_COLLISION_TYPE
+		p3.collision_type = consts.WALL_COLLISION_TYPE
 		p3.filter = wall_collision_filter
 		#p3.friction = 1
 		self.physics_sim.add(wall_body, p1, p2, p3)
 
-		hurtbox_hitbox_handler = self.physics_sim.add_collision_handler(HURTBOX_COLLISION_TYPE, HITBOX_COLLISION_TYPE)
+		hurtbox_hitbox_handler = self.physics_sim.add_collision_handler(consts.HURTBOX_COLLISION_TYPE, consts.HITBOX_COLLISION_TYPE)
 		hurtbox_hitbox_handler.pre_solve = pre_solve_hurtbox_hitbox
 
 		self.gravity_enabled = True
@@ -469,17 +215,17 @@ def step_game(_):
 					break
 
 		# on input, move fighter to right
-		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_LEFT or fighter.input[INPUT_MOVE_LEFT] == False) and fighter.input[INPUT_MOVE_RIGHT]:
+		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_LEFT or fighter.input.is_pressed(input.INPUT_MOVE_LEFT) == False) and fighter.input.is_pressed(input.INPUT_MOVE_RIGHT):
 			fighter.side_facing = consts.FIGHTER_SIDE_FACING_RIGHT
 			dx = 50
 		
 		#on input, move fighter to the left
-		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_RIGHT or fighter.input[INPUT_MOVE_RIGHT] == False) and fighter.input[INPUT_MOVE_LEFT]:
+		if is_doing_action == False and fighter.recover_timer == 0 and (fighter.side_facing != consts.FIGHTER_SIDE_FACING_RIGHT or fighter.input.is_pressed(input.INPUT_MOVE_RIGHT) == False) and fighter.input.is_pressed(input.INPUT_MOVE_LEFT):
 			fighter.side_facing = consts.FIGHTER_SIDE_FACING_LEFT
 			dx = -50
 
 		fighter.compute_grounding()
-		if (fighter.prev_input[INPUT_JUMP] == False and fighter.input[INPUT_JUMP] and
+		if (fighter.input.is_tapped(input.INPUT_JUMP) and
 			(fighter.is_grounded or fighter.midair_jumps_left > 0)
 			):
 			print("JUMPING")
@@ -492,20 +238,10 @@ def step_game(_):
 			fighter.body.apply_impulse_at_local_point((0, y_force))
 
 		if fighter.recover_timer == 0 and is_doing_action == False:
-			if fighter.is_grounded:
-				if fighter.input[INPUT_MOVE_DOWN] and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.down_light_attack.cooldown_timer == 0:
-					fighter.down_light_attack.activate(fighter.side_facing)
-				elif dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT)  and fighter.side_light_attack.cooldown_timer == 0:
-					fighter.side_light_attack.activate(fighter.side_facing)
-				elif dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.neutral_light_attack.cooldown_timer == 0:
-					fighter.neutral_light_attack.activate(fighter.side_facing)
-			else:
-				if fighter.input[INPUT_MOVE_DOWN] and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.aerial_down_light_attack.cooldown_timer == 0:
-					fighter.aerial_down_light_attack.activate(fighter.side_facing)
-				elif dx != 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT)  and fighter.aerial_side_light_attack.cooldown_timer == 0:
-					fighter.aerial_side_light_attack.activate(fighter.side_facing)
-				elif dx == 0 and fighter.is_input_tapped(INPUT_LIGHT_HIT) and fighter.aerial_neutral_light_attack.cooldown_timer == 0:
-					fighter.aerial_neutral_light_attack.activate(fighter.side_facing)
+			for attack in fighter.attacks:
+				if attack.is_attack_triggered_func(fighter.is_grounded, fighter.input):
+					attack.activate(fighter.side_facing)
+					break
 
 		attack_velocity = (0,0)
 		if is_doing_action and attack_results.is_active and attack_results.velocity != None:
@@ -523,8 +259,8 @@ def step_game(_):
 		fighter.is_hit = False
 
 		fighter.body.is_gravity_cancelled_due_to_attacking = fighter.body.is_gravity_cancelled_due_to_attacking and attack_results.is_active
-		#input should be copied into previous input AFTER all logic needing input has been processed
-		fighter.prev_input = fighter.input.copy()
+		#current input should be copied into previous input AFTER all logic needing input has been processed
+		fighter.input.copy_current_to_previous()
 
 	game_state.physics_sim.step(TIMESTEP)
 
@@ -553,21 +289,21 @@ def on_draw():
 def on_key_press(key, modifiers):
 	fighter: Fighter = game_state.fighters[DEVICE_CONTROLLED_FIGHTER_INDEX]
 	if key == pyglet.window.key.LEFT:
-		fighter.input[INPUT_MOVE_LEFT] = True
+		fighter.input.current[input.INPUT_MOVE_LEFT] = True
 	if key == pyglet.window.key.RIGHT:
-		fighter.input[INPUT_MOVE_RIGHT] = True
+		fighter.input.current[input.INPUT_MOVE_RIGHT] = True
 	if key == pyglet.window.key.DOWN:
-		fighter.input[INPUT_MOVE_DOWN] = True
+		fighter.input.current[input.INPUT_MOVE_DOWN] = True
 	if key == pyglet.window.key.UP:
-		fighter.input[INPUT_JUMP] = True
+		fighter.input.current[input.INPUT_JUMP] = True
 	if key == pyglet.window.key.Z:
-		fighter.input[INPUT_DODGE] = True
+		fighter.input.current[input.INPUT_DODGE] = True
 	if key == pyglet.window.key.X: 
-		fighter.input[INPUT_HEAVY_HIT] = True
+		fighter.input.current[input.INPUT_HEAVY_HIT] = True
 	if key == pyglet.window.key.C:
-		fighter.input[INPUT_LIGHT_HIT] = True
+		fighter.input.current[input.INPUT_LIGHT_HIT] = True
 	if key == pyglet.window.key.V:
-		fighter.input[INPUT_THROW] = True
+		fighter.input.current[input.INPUT_THROW] = True
 	if key == pyglet.window.key.O:
 		game_state.gravity_enabled = not game_state.gravity_enabled
 		if game_state.gravity_enabled:
@@ -580,21 +316,21 @@ def on_key_press(key, modifiers):
 def on_key_release(key, modifiers):
 	fighter: Fighter = game_state.fighters[DEVICE_CONTROLLED_FIGHTER_INDEX]
 	if key == pyglet.window.key.LEFT:
-		fighter.input[INPUT_MOVE_LEFT] = False
+		fighter.input.current[input.INPUT_MOVE_LEFT] = False
 	if key == pyglet.window.key.RIGHT:
-		fighter.input[INPUT_MOVE_RIGHT] = False
+		fighter.input.current[input.INPUT_MOVE_RIGHT] = False
 	if key == pyglet.window.key.DOWN:
-		fighter.input[INPUT_MOVE_DOWN] = False
+		fighter.input.current[input.INPUT_MOVE_DOWN] = False
 	if key == pyglet.window.key.UP:
-		fighter.input[INPUT_JUMP] = False
+		fighter.input.current[input.INPUT_JUMP] = False
 	if key == pyglet.window.key.Z:
-		fighter.input[INPUT_DODGE] = False
+		fighter.input.current[input.INPUT_DODGE] = False
 	if key == pyglet.window.key.X: 
-		fighter.input[INPUT_HEAVY_HIT] = False
+		fighter.input.current[input.INPUT_HEAVY_HIT] = False
 	if key == pyglet.window.key.C:
-		fighter.input[INPUT_LIGHT_HIT] = False
+		fighter.input.current[input.INPUT_LIGHT_HIT] = False
 	if key == pyglet.window.key.V:
-		fighter.input[INPUT_THROW] = False
+		fighter.input.current[input.INPUT_THROW] = False
 
 if __name__ == "__main__":
 	pyglet.clock.schedule_interval(step_game, TIMESTEP)

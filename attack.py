@@ -1,5 +1,7 @@
 import pymunk
 import consts
+from typing import Callable
+import input
 
 class Hitbox():
 	def __init__(self, left_shapes: list[pymunk.Shape], right_shapes: list[pymunk.Shape]):
@@ -16,7 +18,7 @@ class Cast():
 	def __init__(
 			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
 		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float] = (1,0), 
-			self_velocity_on_hit: tuple[float,float]|None = None, should_cancel_victim_velocity_on_hit_until_next_hit_in_attack: bool = False
+			self_velocity_on_hit: tuple[float,float]|None = None, should_cancel_victim_velocity_on_hit_until_next_hit_in_attack: bool = False,
 		):
 		self.startup_frames = startup_frames
 		self.active_frames = active_frames
@@ -53,7 +55,10 @@ class Power():
 		self.is_active = False
 
 class Attack():
-	def __init__(self, powers: list[Power], name: str):
+	def __init__(self, powers: list[Power], name: str, is_attack_triggered_func: Callable[[bool, input.Input], bool]):
+		"""
+			is_attack_triggered_func - parameters are as follows: fighter_recover_timer: is_fighter_grounded: bool, input: list[bool]. returns true if conditions are met
+		"""
 		self.has_hit = False
 		self.powers = powers
 		self.name = name
@@ -67,6 +72,7 @@ class Attack():
 		self.recover_timer = 0
 		self.side_facing = 0
 		self.is_victim_velocity_cancelled_until_next_hit = False
+		self.is_attack_triggered_func = is_attack_triggered_func
 		 
 		for power in self.powers:
 			for cast in power.casts:

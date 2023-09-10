@@ -25,17 +25,22 @@ roughly sorted by priority
 - death + respawn when far enough away from the arena
 
 - grapple into the sides of the wall
+ 
+- improve smooth combo-ing of attacks
+
+- MORE SOON
+
+--LOW PRIORITIES
+
+- allow casts to alter size of hurtbox on certain frames
+ o second cast of neutral down light
 
 - apply series of offsets to hurtboxes when certain casts require it
  o neutral light second cast with hitbox
  o down light at the start of first cast
  o side light at the start of the first cast
- 
-- allow casts to alter size of hurtbox on certain frames:
- o second cast of neutral down light
-- MORE SOON
 
-DONE:
+--DONE--
 
 x knockback direction dependent on attack
  x unarmed n-light 
