@@ -86,7 +86,9 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			Power([Cast(startup_frames=0, active_frames=1, velocity=(100,0), is_velocity_on_active_frames_only=True)], fixed_recovery_frames = 2, recovery_frames = 18) 
 		], 
 		name="unarmed_side_light",
-		is_attack_triggered_func=lambda is_fighter_grounded, input: is_fighter_grounded and (input.is_pressed(INPUT_MOVE_LEFT) or input.is_pressed(INPUT_MOVE_RIGHT)) and input.is_tapped(INPUT_LIGHT_HIT)
+		requires_fighter_grounding=True,
+		hit_input=AttackHitInput.LIGHT,
+		move_input=AttackMoveInput.SIDE,
 	))
 
 	attacks.append(Attack(
@@ -124,7 +126,9 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			),
 		], 
 		name="unarmed_down_light",
-		is_attack_triggered_func=lambda is_fighter_grounded, input: is_fighter_grounded and input.is_pressed(INPUT_MOVE_DOWN) and input.is_tapped(INPUT_LIGHT_HIT)
+		requires_fighter_grounding=True, 
+		hit_input=AttackHitInput.LIGHT,
+		move_input=AttackMoveInput.DOWN,
 	))
 
 	attacks.append(Attack(
@@ -171,7 +175,9 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			Power([Cast(startup_frames = 0, active_frames=1)], fixed_recovery_frames=2, recovery_frames=9), 
 		],
 		name="unarmed_neutral_light",
-		is_attack_triggered_func=lambda is_fighter_grounded, input: is_fighter_grounded and input.is_tapped(INPUT_LIGHT_HIT)
+		requires_fighter_grounding=True, 
+		hit_input=AttackHitInput.LIGHT,
+		move_input=AttackMoveInput.NEUTRAL,
 	))
 
 	attacks.append(Attack(
@@ -199,7 +205,9 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			),
 		],
 		name="unarmed_aerial_side_light",
-		is_attack_triggered_func=lambda is_fighter_grounded, input: not is_fighter_grounded and (input.is_pressed(INPUT_MOVE_LEFT) or input.is_pressed(INPUT_MOVE_RIGHT)) and input.is_tapped(INPUT_LIGHT_HIT)
+		requires_fighter_grounding=False, 
+		hit_input=AttackHitInput.LIGHT,
+		move_input=AttackMoveInput.SIDE,
 	))
 
 	attacks.append(Attack(
@@ -221,7 +229,9 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			),
 		], 
 		name="unarmed_aerial_down_light",
-		is_attack_triggered_func=lambda is_fighter_grounded, input: not is_fighter_grounded and input.is_pressed(INPUT_MOVE_DOWN) and input.is_tapped(INPUT_LIGHT_HIT)
+		requires_fighter_grounding=False, 
+		hit_input=AttackHitInput.LIGHT,
+		move_input=AttackMoveInput.DOWN,
 	))
 
 	attacks.append(Attack(
@@ -261,7 +271,9 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			),
 		], 
 		name="unarmed_aerial_neutral_light",
-		is_attack_triggered_func=lambda is_fighter_grounded, input: not is_fighter_grounded and input.is_tapped(INPUT_LIGHT_HIT)
+		requires_fighter_grounding=False, 
+		hit_input=AttackHitInput.LIGHT,
+		move_input=AttackMoveInput.NEUTRAL,
 	))
 
 	return attacks
