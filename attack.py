@@ -2,6 +2,7 @@ import pymunk
 import consts
 from typing import Callable
 import input
+from enum import Enum
 
 class Hitbox():
 	def __init__(self, left_shapes: list[pymunk.Shape], right_shapes: list[pymunk.Shape]):
@@ -19,7 +20,14 @@ class Cast():
 			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
 		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float] = (1,0), 
 			self_velocity_on_hit: tuple[float,float]|None = None, should_cancel_victim_velocity_on_hit_until_next_hit_in_attack: bool = False,
+			additional_startup_frames: int = 0, extra_dmg_per_extra_startup_frame: int = 0,
 		):
+		"""
+
+		### Parameters:
+			additional_startup_frames : if greater than zero, than this cast is considered a charged cast. while the attack trigger is still holding
+			extra_dmg_per_extra_startup_frame : how much damage is added to the cast for every additional startup frame
+		"""
 		self.startup_frames = startup_frames
 		self.active_frames = active_frames
 		self.active_frame_counter = 0
@@ -37,6 +45,10 @@ class Cast():
 		# how much velocity needs to be applied to the fighter when hit lands. gravity is also cancelled if not none.
 		self.self_velocity_on_hit = self_velocity_on_hit
 		self.should_cancel_victim_velocity_on_hit_until_next_hit_in_attack = should_cancel_victim_velocity_on_hit_until_next_hit_in_attack
+		self.additional_startup_frames = additional_startup_frames
+		self.extra_dmg_per_extra_startup_frame = extra_dmg_per_extra_startup_frame
+		# the damage that will be applied to the fighter's damage if hit by the cast.
+		self.applied_dmg = 0
 
 class Power():
 	def __init__(
@@ -54,10 +66,23 @@ class Power():
 		self.cancel_power_on_hit = cancel_power_on_hit
 		self.is_active = False
 
+# the value of the enum is equal to the attack type's input value
+class AttackHitInput(Enum):
+	LIGHT=input.INPUT_LIGHT_HIT
+	HEAVY=input.INPUT_HEAVY_HIT
+
+class AttackMoveInput(Enum):
+	NEUTRAL=1
+	SIDE=2
+	DOWN=3
+
 class Attack():
-	def __init__(self, powers: list[Power], name: str, is_attack_triggered_func: Callable[[bool, input.Input], bool]):
-		"""
-			is_attack_triggered_func - parameters are as follows: fighter_recover_timer: is_fighter_grounded: bool, input: list[bool]. returns true if conditions are met
+	def __init__(self, powers: list[Power], name: str, requires_fighter_grounding: bool, hit_input: AttackHitInput, move_input: AttackMoveInput):
+		""" 
+			### Arguments
+				requires_fighter_grounding : whether the attack needs the fighter to be grounded or in the air for the attack to be activated
+				hit_input : light hit or heavy hit
+				move_input : does attack require side, down, or neutral (none) input to be pressed
 		"""
 		self.has_hit = False
 		self.powers = powers
@@ -72,7 +97,11 @@ class Attack():
 		self.recover_timer = 0
 		self.side_facing = 0
 		self.is_victim_velocity_cancelled_until_next_hit = False
-		self.is_attack_triggered_func = is_attack_triggered_func
+		self.requires_fighter_grounding = requires_fighter_grounding
+		self.hit_input = hit_input
+		self.move_input = move_input
+		# whether the attack is be charging. this is only true if the attack's hit input has been pressed since the start of the attack
+		self.is_charging = False
 		 
 		for power in self.powers:
 			for cast in power.casts:
@@ -93,6 +122,7 @@ class Attack():
 		self.recover_timer = 0
 		self.has_hit = False
 		self.is_victim_velocity_cancelled_until_next_hit = False
+		self.is_charging = True
 		for p in self.powers:
 			p.is_active = False
 			for c in p.casts:
@@ -100,13 +130,22 @@ class Attack():
 				c.has_hit = False
 				c.active_frame_counter = 0
 
+def is_attack_triggered(attack: Attack, is_fighter_grounded: bool, input: input.Input) -> bool:
+	"""
+		for an attack to be triggered, the fighter's grounding must be satisified, and the attack's hit and move input must be tapped
+	"""
+	is_move_input_pressed = False
+	if attack.move_input == AttackMoveInput.SIDE:
+		is_move_input_pressed = 
+	return attack.requires_fighter_grounding == is_fighter_grounded and attack.
+
 class StepAttackResults():
 	def __init__(self, is_active: bool, velocity: tuple[float, float]|None, recover_frames: int):
 		self.is_active = is_active
 		self.velocity = velocity
 		self.recover_frames = recover_frames
 
-def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
+def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input) -> StepAttackResults:
 	if attack.is_active == False:
 		attack.cooldown_timer = max(attack.cooldown_timer - 1, 0)
 		return StepAttackResults(is_active=False, velocity=None, recover_frames=0)
@@ -116,8 +155,15 @@ def step_attack(attack: Attack, space: pymunk.Space) -> StepAttackResults:
 	if attack.recover_timer > 0:
 		attack.recover_timer = max(attack.recover_timer - 1, 0)
 		return StepAttackResults(is_active=True, velocity=None, recover_frames=0)
-	
+
 	attack.cast_frame += 1
+	
+	if attack.is_charging:
+		is_hit_input_pressed =  fighter_input.is_pressed(attack.hit_input)
+		has_more_startup_frames =  attack.cast_frame > current_cast.startup_frames and current_cast.additional_startup_frames > 0 and attack.cast_frame < current_cast.startup_frames + current_cast.additional_startup_frames
+		attack.is_charging = is_hit_input_pressed and has_more_startup_frames	
+		int(attack.is_charging)
+
 	# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
 	is_cast_finished = (current_power.cancel_power_on_hit and attack.has_hit) or attack.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames)
 	if is_cast_finished:
