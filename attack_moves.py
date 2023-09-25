@@ -88,7 +88,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		name="unarmed_side_light",
 		requires_fighter_grounding=True,
 		hit_input=AttackHitInput.LIGHT,
-		move_input=AttackMoveInput.SIDE,
+		move_type=AttackMoveType.SIDE,
 	))
 
 	attacks.append(Attack(
@@ -128,7 +128,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		name="unarmed_down_light",
 		requires_fighter_grounding=True, 
 		hit_input=AttackHitInput.LIGHT,
-		move_input=AttackMoveInput.DOWN,
+		move_type=AttackMoveType.DOWN,
 	))
 
 	attacks.append(Attack(
@@ -177,7 +177,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		name="unarmed_neutral_light",
 		requires_fighter_grounding=True, 
 		hit_input=AttackHitInput.LIGHT,
-		move_input=AttackMoveInput.NEUTRAL,
+		move_type=AttackMoveType.NEUTRAL,
 	))
 
 	attacks.append(Attack(
@@ -207,7 +207,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		name="unarmed_aerial_side_light",
 		requires_fighter_grounding=False, 
 		hit_input=AttackHitInput.LIGHT,
-		move_input=AttackMoveInput.SIDE,
+		move_type=AttackMoveType.SIDE,
 	))
 
 	attacks.append(Attack(
@@ -231,7 +231,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		name="unarmed_aerial_down_light",
 		requires_fighter_grounding=False, 
 		hit_input=AttackHitInput.LIGHT,
-		move_input=AttackMoveInput.DOWN,
+		move_type=AttackMoveType.DOWN,
 	))
 
 	attacks.append(Attack(
@@ -273,7 +273,22 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		name="unarmed_aerial_neutral_light",
 		requires_fighter_grounding=False, 
 		hit_input=AttackHitInput.LIGHT,
-		move_input=AttackMoveInput.NEUTRAL,
+		move_type=AttackMoveType.NEUTRAL,
+	))
+
+	attacks.append(Attack(
+		powers = [
+			Power(
+				casts = [
+					Cast(startup_frames=0, active_frames=1),
+					Cast(
+						startup_frames=11, active_frames=1, additional_startup_frames=70, 
+						extra_dmg_per_extra_startup_frame=1,
+					),
+				],
+			),
+		],
+		name="unarmed_side_heavy"
 	))
 
 	return attacks

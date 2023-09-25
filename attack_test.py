@@ -6,7 +6,7 @@ import input
 # Assuming that consts.FIGHTER_SIDE_FACING_LEFT and consts.FIGHTER_SIDE_FACING_RIGHT are 0 and 1 respectively
 DUMMY_SIDE_FACING = 0
 
-class TestStepAttackFunction(unittest.TestCase):
+class TestAttack(unittest.TestCase):
 	
 	def setUp(self):
 		self.space = pymunk.Space()
@@ -18,7 +18,7 @@ class TestStepAttackFunction(unittest.TestCase):
 				"attack": Attack(
 						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
 						name="dummy_attack", 
-						requires_fighter_grounding=True, attack_type=AttackHitInput.LIGHT, attack_move_type=AttackMoveInput.DOWN),
+						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.DOWN),
 				"number_of_trues": 4  # expected number of times that function will return true
 			},
 			{
@@ -41,7 +41,7 @@ class TestStepAttackFunction(unittest.TestCase):
 					name="unarmed_side_light",
 					requires_fighter_grounding=True,
 					hit_input=AttackHitInput.LIGHT,
-					move_input=AttackMoveInput.SIDE,
+					move_type=AttackMoveType.SIDE,
 				),
 				"number_of_trues": 12
 			},
@@ -62,6 +62,66 @@ class TestStepAttackFunction(unittest.TestCase):
 						bool_return_count += 1
 
 				self.assertEqual(bool_return_count, test['number_of_trues'], f"unexpected number of times step() returned true: {bool_return_count}")
+	
+	def test_is_attack_triggered(self):
+		first_case_input = input.Input()
+		first_case_input.current[input.INPUT_LIGHT_HIT] = True
+		first_case_input.current[input.INPUT_MOVE_LEFT] = True
+		second_case_input = input.Input()
+		third_case_input = input.Input()
+		third_case_input.current[input.INPUT_HEAVY_HIT] = True
+		fourth_case_input = input.Input()
+		fourth_case_input.current[input.INPUT_LIGHT_HIT] = True
+		tests = [
+			{
+				"name": "side_light_met",
+				"attack": Attack(
+						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
+						name="dummy_attack", 
+						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.SIDE),
+				"is_fighter_grounded": True,
+				"fighter_input": first_case_input,
+				"want": True  # expected number of times that function will return true
+			},
+			{
+				"name": "down_light_not_met",
+				"attack": Attack(
+						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
+						name="dummy_attack", 
+						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.DOWN),
+				"is_fighter_grounded": True,
+				"fighter_input": second_case_input,
+				"want": False  # expected number of times that function will return true
+			},
+			{
+				"name": "neutral_heavy_met",
+				"attack": Attack(
+						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
+						name="dummy_attack", 
+						requires_fighter_grounding=True, hit_input=AttackHitInput.HEAVY, move_type=AttackMoveType.NEUTRAL),
+				"is_fighter_grounded": True,
+				"fighter_input": third_case_input,
+				"want": True  # expected number of times that function will return true
+			},
+			{
+				"name": "side_light_not_met",
+				"attack": Attack(
+						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
+						name="dummy_attack", 
+						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.SIDE),
+				"is_fighter_grounded": True,
+				"fighter_input": fourth_case_input,
+				"want": False  # expected number of times that function will return true
+			},
+		]
+		for test in tests:
+			with self.subTest(test['name']):
+				attack: Attack = test['attack']
+				fighter_input: input.Input = test['fighter_input']
+				is_fighter_grounded: bool = test['is_fighter_grounded'] 
+				want: bool = test['want']
+				got: bool = is_attack_triggered(attack, is_fighter_grounded, fighter_input)
+				self.assertEqual(want, got, "want {}, got {}".format(want, got))
 
 if __name__ == '__main__':
 	unittest.main()

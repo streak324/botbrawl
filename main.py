@@ -141,7 +141,7 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 		victim.recover_timer = power.stun_frames
 		if not cast.has_hit:
 			cast.has_hit = True
-			victim.dmg_points += cast.base_dmg
+			victim.dmg_points += attack.applied_dmg
 			print("victim has {} damage points".format(victim.dmg_points))
 
 			attacker_applied_velocity = cast.self_velocity_on_hit
@@ -209,7 +209,7 @@ def step_game(_):
 		is_doing_action = False
 		if fighter.recover_timer == 0:
 			for attack in fighter.attacks:
-				attack_results = step_attack(attack, game_state.physics_sim)
+				attack_results = step_attack(attack, game_state.physics_sim, fighter.input)
 				if attack_results.is_active and not is_doing_action:
 					is_doing_action = True
 					break
@@ -239,7 +239,7 @@ def step_game(_):
 
 		if fighter.recover_timer == 0 and is_doing_action == False:
 			for attack in fighter.attacks:
-				if attack.is_attack_triggered_func(fighter.is_grounded, fighter.input):
+				if is_attack_triggered(attack, fighter.is_grounded, fighter.input):
 					attack.activate(fighter.side_facing)
 					break
 

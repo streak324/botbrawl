@@ -17,10 +17,10 @@ class Hitbox():
 class Cast():
 	#active_velocity is supposed to be used during active frames.
 	def __init__(
-			self, startup_frames: int, active_frames: int, base_dmg: int = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
+			self, startup_frames: int, active_frames: int, base_dmg: float = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
 		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float] = (1,0), 
 			self_velocity_on_hit: tuple[float,float]|None = None, should_cancel_victim_velocity_on_hit_until_next_hit_in_attack: bool = False,
-			additional_startup_frames: int = 0, extra_dmg_per_extra_startup_frame: int = 0,
+			additional_startup_frames: int = 0, extra_dmg_per_extra_startup_frame: float = 0,
 		):
 		"""
 
@@ -47,8 +47,6 @@ class Cast():
 		self.should_cancel_victim_velocity_on_hit_until_next_hit_in_attack = should_cancel_victim_velocity_on_hit_until_next_hit_in_attack
 		self.additional_startup_frames = additional_startup_frames
 		self.extra_dmg_per_extra_startup_frame = extra_dmg_per_extra_startup_frame
-		# the damage that will be applied to the fighter's damage if hit by the cast.
-		self.applied_dmg = 0
 
 class Power():
 	def __init__(
@@ -71,18 +69,18 @@ class AttackHitInput(Enum):
 	LIGHT=input.INPUT_LIGHT_HIT
 	HEAVY=input.INPUT_HEAVY_HIT
 
-class AttackMoveInput(Enum):
+class AttackMoveType(Enum):
 	NEUTRAL=1
 	SIDE=2
 	DOWN=3
 
 class Attack():
-	def __init__(self, powers: list[Power], name: str, requires_fighter_grounding: bool, hit_input: AttackHitInput, move_input: AttackMoveInput):
+	def __init__(self, powers: list[Power], name: str, requires_fighter_grounding: bool, hit_input: AttackHitInput, move_type: AttackMoveType):
 		""" 
 			### Arguments
 				requires_fighter_grounding : whether the attack needs the fighter to be grounded or in the air for the attack to be activated
 				hit_input : light hit or heavy hit
-				move_input : does attack require side, down, or neutral (none) input to be pressed
+				move_type : does attack require side, down, or neutral (none) input to be pressed
 		"""
 		self.has_hit = False
 		self.powers = powers
@@ -99,9 +97,11 @@ class Attack():
 		self.is_victim_velocity_cancelled_until_next_hit = False
 		self.requires_fighter_grounding = requires_fighter_grounding
 		self.hit_input = hit_input
-		self.move_input = move_input
+		self.move_type = move_type
 		# whether the attack is be charging. this is only true if the attack's hit input has been pressed since the start of the attack
 		self.is_charging = False
+		# the damage that will be applied to the fighter's damage if hit by the cast.
+		self.applied_dmg = 0
 		 
 		for power in self.powers:
 			for cast in power.casts:
@@ -123,6 +123,7 @@ class Attack():
 		self.has_hit = False
 		self.is_victim_velocity_cancelled_until_next_hit = False
 		self.is_charging = True
+		self.applied_dmg = self.powers[0].casts[0].base_dmg
 		for p in self.powers:
 			p.is_active = False
 			for c in p.casts:
@@ -130,14 +131,15 @@ class Attack():
 				c.has_hit = False
 				c.active_frame_counter = 0
 
-def is_attack_triggered(attack: Attack, is_fighter_grounded: bool, input: input.Input) -> bool:
+def is_attack_triggered(attack: Attack, is_fighter_grounded: bool, fighter_input: input.Input) -> bool:
 	"""
 		for an attack to be triggered, the fighter's grounding must be satisified, and the attack's hit and move input must be tapped
 	"""
-	is_move_input_pressed = False
-	if attack.move_input == AttackMoveInput.SIDE:
-		is_move_input_pressed = 
-	return attack.requires_fighter_grounding == is_fighter_grounded and attack.
+	is_side = attack.move_type == AttackMoveType.SIDE and ( fighter_input.is_pressed(input.INPUT_MOVE_LEFT) or fighter_input.is_pressed(input.INPUT_MOVE_RIGHT))
+	is_down = attack.move_type == AttackMoveType.DOWN and fighter_input.is_pressed(input.INPUT_MOVE_DOWN)
+	is_neutral = attack.move_type == AttackMoveType.NEUTRAL
+	is_move_met = is_side or is_down or is_neutral
+	return is_move_met and fighter_input.is_pressed(attack.hit_input.value) and attack.requires_fighter_grounding == is_fighter_grounded
 
 class StepAttackResults():
 	def __init__(self, is_active: bool, velocity: tuple[float, float]|None, recover_frames: int):
@@ -157,12 +159,6 @@ def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input)
 		return StepAttackResults(is_active=True, velocity=None, recover_frames=0)
 
 	attack.cast_frame += 1
-	
-	if attack.is_charging:
-		is_hit_input_pressed =  fighter_input.is_pressed(attack.hit_input)
-		has_more_startup_frames =  attack.cast_frame > current_cast.startup_frames and current_cast.additional_startup_frames > 0 and attack.cast_frame < current_cast.startup_frames + current_cast.additional_startup_frames
-		attack.is_charging = is_hit_input_pressed and has_more_startup_frames	
-		int(attack.is_charging)
 
 	# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
 	is_cast_finished = (current_power.cancel_power_on_hit and attack.has_hit) or attack.cast_frame > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames)
@@ -200,6 +196,17 @@ def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input)
 		attack.cast_frame = 1
 		current_power = attack.powers[attack.power_idx]
 		current_cast = current_power.casts[attack.cast_idx]
+		attack.applied_dmg = current_cast.base_dmg
+
+	is_hit_input_pressed =  fighter_input.is_pressed(attack.hit_input.value)
+	has_extra_startup_frames = current_cast.additional_startup_frames > 0
+	is_past_startup = attack.cast_frame > current_cast.startup_frames
+	can_do_more_charging =  attack.cast_frame < current_cast.startup_frames + current_cast.additional_startup_frames
+	attack.is_charging = is_hit_input_pressed and has_extra_startup_frames and is_past_startup and  can_do_more_charging
+	attack.applied_dmg += int(attack.is_charging) * current_cast.extra_dmg_per_extra_startup_frame
+
+	if attack.is_charging:
+		return StepAttackResults(is_active=True, velocity=None, recover_frames=0)
 
 	fighter_recover_frames=0
 	if current_power.is_active == False:
