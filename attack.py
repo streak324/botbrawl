@@ -177,7 +177,6 @@ def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input)
 	can_do_more_charging =  attack.cast_frame < current_cast.startup_frames + current_cast.additional_startup_frames
 	attack.can_do_charging = is_hit_input_pressed and has_extra_startup_frames and can_do_more_charging
 	is_charging = attack.can_do_charging and is_past_startup
-	print("attack.can_do_charging: {}, is_hit_input_pressed: {}, has_extra_startup_frames: {}, is_past_startup: {}, can_do_more_charging: {}".format(attack.can_do_charging, is_hit_input_pressed, has_extra_startup_frames, is_past_startup, can_do_more_charging))
 
 	if is_charging:
 		attack.charged_dmg += current_cast.extra_dmg_per_extra_startup_frame

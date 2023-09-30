@@ -51,6 +51,18 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 	left_side_heavy_hitbox_shapes = utils.add_capsule_shape(body, (-7, 4), 14, 5)
 	right_side_heavy_hitbox_shapes = utils.add_capsule_shape(body, (7, 4), 14, 5)
 
+	left_down_heavy_hitbox_shapes_1 = utils.add_capsule_shape(body, (-5, -7), 12, 5)
+	right_down_heavy_hitbox_shapes_1 = utils.add_capsule_shape(body, (5, -7), 12, 5)
+
+	left_down_heavy_hitbox_shapes_2 = utils.add_capsule_shape(body, (-3, -5.5), 8, 6) + utils.add_capsule_shape(body, (-6, -4.5), 6, 5)
+	right_down_heavy_hitbox_shapes_2 = utils.add_capsule_shape(body, (3, -5.5), 8, 6) + utils.add_capsule_shape(body, (6, -4.5), 6, 5)
+
+	left_down_heavy_hitbox_shapes_3 = utils.add_capsule_shape(body, (2, -5.5), 14, 5) + utils.add_capsule_shape(body, (8, -4.5), 8, 6)
+	right_down_heavy_hitbox_shapes_3 = utils.add_capsule_shape(body, (-2, -5.5), 14, 5) + utils.add_capsule_shape(body, (-8, -4.5), 8, 6)
+
+	left_down_heavy_hitbox_shapes_4 = utils.add_capsule_shape(body, (3, -5.5), 14, 5)
+	right_down_heavy_hitbox_shapes_4 = utils.add_capsule_shape(body, (-3, -5.5), 14, 5)
+
 	#NOTE: add all hitboxes into this loop
 	for shape in (left_side_light_hitbox_shapes + right_side_light_hitbox_shapes 
 		+ left_neutral_light_hitbox_shapes_1 + right_neutral_light_hitbox_shapes_1 
@@ -66,6 +78,10 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		+ left_aerial_side_light_hitbox_shapes_3 + right_aerial_side_light_hitbox_shapes_3
 		+ left_aerial_down_light_hitbox_shapes + right_aerial_down_light_hitbox_shapes
 		+ left_side_heavy_hitbox_shapes + right_side_heavy_hitbox_shapes
+		+ left_down_heavy_hitbox_shapes_1 + right_down_heavy_hitbox_shapes_1
+		+ left_down_heavy_hitbox_shapes_2 + right_down_heavy_hitbox_shapes_2
+		+ left_down_heavy_hitbox_shapes_3 + right_down_heavy_hitbox_shapes_3
+		+ left_down_heavy_hitbox_shapes_4 + right_down_heavy_hitbox_shapes_4
 		):
 		shape.collision_type = consts.HITBOX_COLLISION_TYPE	
 		shape.filter = hitbox_filter
@@ -285,10 +301,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			Power(
 				casts = [
 					Cast(startup_frames=0, active_frames=1),
-					Cast(
-						startup_frames=11, active_frames=1, additional_startup_frames=70,
-						extra_dmg_per_extra_startup_frame=0.1,
-					),
+					Cast(startup_frames=11, active_frames=1, additional_startup_frames=70, extra_dmg_per_extra_startup_frame=0.125),
 				],
 			),
 			Power(
@@ -306,6 +319,42 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		requires_fighter_grounding=True,
 		hit_input=AttackHitInput.HEAVY,
 		move_type=AttackMoveType.SIDE,
+	))
+
+	attacks.append(Attack(
+		powers=[
+			Power(
+				casts = [
+					Cast(startup_frames=0, active_frames=1),
+					Cast(startup_frames=11, active_frames=1, additional_startup_frames=70, extra_dmg_per_extra_startup_frame=0.125),
+				],
+			),
+			Power(
+				casts = [
+					Cast(
+						startup_frames=7, active_frames=2, base_dmg=16, var_force=60, fixed_force=40,
+						hitbox=Hitbox(left_down_heavy_hitbox_shapes_1, right_down_heavy_hitbox_shapes_1),
+					),
+					Cast(
+						startup_frames=0, active_frames=5, base_dmg=16, var_force=60, fixed_force=40,
+						hitbox=Hitbox(left_down_heavy_hitbox_shapes_2, right_down_heavy_hitbox_shapes_2),
+					),
+					Cast(
+						startup_frames=9, active_frames=3, base_dmg=16, var_force=60, fixed_force=40,
+						hitbox=Hitbox(left_down_heavy_hitbox_shapes_3, right_down_heavy_hitbox_shapes_3),
+					),
+					Cast(
+						startup_frames=0, active_frames=2, base_dmg=16, var_force=60, fixed_force=40,
+						hitbox=Hitbox(left_down_heavy_hitbox_shapes_4, right_down_heavy_hitbox_shapes_4),
+					),
+				],
+				recovery_frames=21, stun_frames=18,
+			),
+		],
+		name="unarmed_down_heavy",
+		requires_fighter_grounding=True,
+		hit_input=AttackHitInput.HEAVY,
+		move_type=AttackMoveType.DOWN,
 	))
 
 	return attacks
