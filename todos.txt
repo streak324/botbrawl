@@ -12,7 +12,7 @@ roughly sorted by priority
  x neutral heavy
  x side heavy
  x down heavy
- o aerial neutral heavy (also used for side)
+ x aerial neutral heavy (also used for side)
  o aerial down heavy (fighter can have this attack running for as long as they are in the air)
 
 - dodge
