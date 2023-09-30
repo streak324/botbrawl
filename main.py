@@ -72,7 +72,7 @@ class Fighter():
 			categories=0b1 << (consts.FIGHTER_WALL_COLLIDER_COLLISION_TYPE-1),
 			mask=0b1 << (consts.WALL_COLLISION_TYPE-1))
 
-		hurtbox_shapes = utils.add_capsule_shape(self.body, (0,0), consts.HURTBOX_WIDTH, consts.HURTBOX_HEIGHT)
+		hurtbox_shapes = utils.add_capsule_shape(self.body, (0,0), (consts.HURTBOX_WIDTH, consts.HURTBOX_HEIGHT))
 		for shape in hurtbox_shapes:
 			shape.collision_type = consts.HURTBOX_COLLISION_TYPE 
 			shape.filter = hurtbox_filter

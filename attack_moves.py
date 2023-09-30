@@ -4,90 +4,36 @@ import pymunk
 from attack import *
 from input import *
 
-def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
+class CapsuleParams():
+	def __init__(self, offset: tuple[float,float], dims: tuple[float,float]):
+		self.offset = offset
+		self.dims = dims
+
+def create_hitbox_from_capsules(body, capsules_params: list[CapsuleParams]) -> Hitbox: 
+	"""
+		capsule_params should represent the arguments for hitbox shapes that are facing right. left facing hitboxes will be created from negating the  x (0 index) offset
+	"""
 	hitbox_filter = pymunk.ShapeFilter(
 		categories=0b1 << (consts.HITBOX_COLLISION_TYPE-1), 
 		mask=0b1 << (consts.HURTBOX_COLLISION_TYPE-1))
 
-	left_side_light_hitbox_shapes = utils.add_capsule_shape(body, (-7.2,-1),14.4,5)
-	right_side_light_hitbox_shapes = utils.add_capsule_shape(body, (7.2,-1),14.4,5)
+	left: list[pymunk.Shape] = []
+	right: list[pymunk.Shape] = []
+	for capsule_params in capsules_params:
+		left_capsule = utils.add_capsule_shape(body, offset=(-capsule_params.offset[0], capsule_params.offset[1]), dims=capsule_params.dims)
+		right_capsule = utils.add_capsule_shape(body, offset=capsule_params.offset, dims=capsule_params.dims)
+		for s in left_capsule + right_capsule:
+			s.collision_type = consts.HITBOX_COLLISION_TYPE	
+			s.filter = hitbox_filter
+			s.sensor = True
+			s.color = (128, 0, 0, 255)
 
-	left_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(body, (-6, 0), 10, 5)
-	right_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(body, (6, 0), 10, 5)
+		left.extend(left_capsule)
+		right.extend(right_capsule)
+		
+	return Hitbox(left, right)
 
-	left_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(body, (-4, 0), 4, 4) + utils.add_capsule_shape(body, (-6, 4), 8, 6)
-	right_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(body, (4, 0), 4, 4) + utils.add_capsule_shape(body, (6, 4), 8, 6)
-
-	left_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(body, (-4, 0), 5, 10)
-	right_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(body, (4, 0), 5, 10)
-
-	left_neutral_light_hitbox_shapes_4 = utils.add_capsule_shape(body, (-6, 0), 10, 5)
-	right_neutral_light_hitbox_shapes_4 = utils.add_capsule_shape(body, (6, 0), 10, 5)
-
-	left_down_light_hitbox_shapes = utils.add_capsule_shape(body, (-8, -4), 10, 5)
-	right_down_light_hitbox_shapes = utils.add_capsule_shape(body, (8, -4), 10, 5)
-	
-	left_aerial_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(body, (-7, 1), 5, 10)
-	right_aerial_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(body, (7, 1), 5, 10)
-
-	left_aerial_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(body, (-7, -1), 4, 3) + utils.add_capsule_shape(body, (-9, 2), 8, 4)
-	right_aerial_neutral_light_hitbox_shapes_2 = utils.add_capsule_shape(body, (7, -1), 4, 3) + utils.add_capsule_shape(body, (9, 2), 8, 4)
-
-	left_aerial_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(body, (-4, 0), 10, 5)
-	right_aerial_neutral_light_hitbox_shapes_3 = utils.add_capsule_shape(body, (4, 0), 10, 5)
-
-	left_aerial_side_light_hitbox_shapes_1 = utils.add_capsule_shape(body, (-8, -2), 6, 3) + utils.add_capsule_shape(body, (-10, -4), 4, 3)
-	right_aerial_side_light_hitbox_shapes_1 = utils.add_capsule_shape(body, (8, -2), 6, 3) + utils.add_capsule_shape(body, (10, -4), 4, 3)
-
-	left_aerial_side_light_hitbox_shapes_2 = utils.add_capsule_shape(body, (-9, -2), 4, 3) + utils.add_capsule_shape(body, (-10, -4), 4, 3)
-	right_aerial_side_light_hitbox_shapes_2 = utils.add_capsule_shape(body, (9, -2), 4, 3) + utils.add_capsule_shape(body, (10, -4), 4, 3)
-
-	left_aerial_side_light_hitbox_shapes_3 = utils.add_capsule_shape(body, (-12, -5), 2, 2)
-	right_aerial_side_light_hitbox_shapes_3 = utils.add_capsule_shape(body, (12, -5), 2, 2)
-
-	left_aerial_down_light_hitbox_shapes = utils.add_capsule_shape(body, (-5, -4), 2, 3) + utils.add_capsule_shape(body, (-6, -6), 3, 4)
-	right_aerial_down_light_hitbox_shapes = utils.add_capsule_shape(body, (5, -4), 2, 3) + utils.add_capsule_shape(body, (6, -6), 3, 4)
-
-	left_side_heavy_hitbox_shapes = utils.add_capsule_shape(body, (-7, 4), 14, 5)
-	right_side_heavy_hitbox_shapes = utils.add_capsule_shape(body, (7, 4), 14, 5)
-
-	left_down_heavy_hitbox_shapes_1 = utils.add_capsule_shape(body, (-5, -7), 12, 5)
-	right_down_heavy_hitbox_shapes_1 = utils.add_capsule_shape(body, (5, -7), 12, 5)
-
-	left_down_heavy_hitbox_shapes_2 = utils.add_capsule_shape(body, (-3, -5.5), 8, 6) + utils.add_capsule_shape(body, (-6, -4.5), 6, 5)
-	right_down_heavy_hitbox_shapes_2 = utils.add_capsule_shape(body, (3, -5.5), 8, 6) + utils.add_capsule_shape(body, (6, -4.5), 6, 5)
-
-	left_down_heavy_hitbox_shapes_3 = utils.add_capsule_shape(body, (2, -5.5), 14, 5) + utils.add_capsule_shape(body, (8, -4.5), 8, 6)
-	right_down_heavy_hitbox_shapes_3 = utils.add_capsule_shape(body, (-2, -5.5), 14, 5) + utils.add_capsule_shape(body, (-8, -4.5), 8, 6)
-
-	left_down_heavy_hitbox_shapes_4 = utils.add_capsule_shape(body, (3, -5.5), 14, 5)
-	right_down_heavy_hitbox_shapes_4 = utils.add_capsule_shape(body, (-3, -5.5), 14, 5)
-
-	#NOTE: add all hitboxes into this loop
-	for shape in (left_side_light_hitbox_shapes + right_side_light_hitbox_shapes 
-		+ left_neutral_light_hitbox_shapes_1 + right_neutral_light_hitbox_shapes_1 
-		+ left_neutral_light_hitbox_shapes_2 + right_neutral_light_hitbox_shapes_2
-		+ left_neutral_light_hitbox_shapes_3 + right_neutral_light_hitbox_shapes_3 
-		+ left_neutral_light_hitbox_shapes_4 + right_neutral_light_hitbox_shapes_4 
-		+ left_down_light_hitbox_shapes + right_down_light_hitbox_shapes
-		+ left_aerial_neutral_light_hitbox_shapes_1 + right_aerial_neutral_light_hitbox_shapes_1
-		+ left_aerial_neutral_light_hitbox_shapes_2 + right_aerial_neutral_light_hitbox_shapes_2
-		+ left_aerial_neutral_light_hitbox_shapes_3 + right_aerial_neutral_light_hitbox_shapes_3
-		+ left_aerial_side_light_hitbox_shapes_1 + right_aerial_side_light_hitbox_shapes_1
-		+ left_aerial_side_light_hitbox_shapes_2 + right_aerial_side_light_hitbox_shapes_2
-		+ left_aerial_side_light_hitbox_shapes_3 + right_aerial_side_light_hitbox_shapes_3
-		+ left_aerial_down_light_hitbox_shapes + right_aerial_down_light_hitbox_shapes
-		+ left_side_heavy_hitbox_shapes + right_side_heavy_hitbox_shapes
-		+ left_down_heavy_hitbox_shapes_1 + right_down_heavy_hitbox_shapes_1
-		+ left_down_heavy_hitbox_shapes_2 + right_down_heavy_hitbox_shapes_2
-		+ left_down_heavy_hitbox_shapes_3 + right_down_heavy_hitbox_shapes_3
-		+ left_down_heavy_hitbox_shapes_4 + right_down_heavy_hitbox_shapes_4
-		):
-		shape.collision_type = consts.HITBOX_COLLISION_TYPE	
-		shape.filter = hitbox_filter
-		shape.sensor = True
-		shape.color = (128, 0, 0, 255)
-
+def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 	attacks = []
 	# order should be on priority
 	attacks.append(Attack(
@@ -98,7 +44,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 					Cast(startup_frames=3, active_frames=2, velocity=(100,10), is_velocity_on_active_frames_only=True),
 					Cast(
 						startup_frames=1, active_frames=4, velocity=(100,0), is_velocity_on_active_frames_only=False, base_dmg = 13, var_force=20, fixed_force=80,
-						hitbox=Hitbox( left_side_light_hitbox_shapes, right_side_light_hitbox_shapes, ),
+						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(7.2,-1), dims=(14.4,5))]),
 					)
 				],
 				cooldown_frames = 10, stun_frames = 18
@@ -120,7 +66,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 					),
 					Cast(
 						startup_frames=0, active_frames=9, base_dmg=8, var_force=5, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True, knockback_dir=(0.05,0.95),
-						hitbox=Hitbox(left_down_light_hitbox_shapes, right_down_light_hitbox_shapes)
+						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(8,-4), dims=(10,5))]),
 					),
 					Cast(
 						startup_frames=0,active_frames=3, velocity=(50,0), is_velocity_on_active_frames_only=True
@@ -157,7 +103,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(
 						startup_frames = 5,	active_frames = 3, base_dmg=3, fixed_force=25,
-						hitbox=Hitbox(left_neutral_light_hitbox_shapes_1, right_neutral_light_hitbox_shapes_1),
+						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(6, 0), dims=(10,5))]),
 					),
 				],
 				recovery_frames = 3, cooldown_frames = 16, stun_frames = 17
@@ -166,7 +112,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(
 						startup_frames = 6, active_frames = 6, base_dmg=3, fixed_force=20,
-						hitbox=Hitbox(left_neutral_light_hitbox_shapes_2, right_neutral_light_hitbox_shapes_2),
+						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(4,0), dims=(4,4)), CapsuleParams(offset=(6,4), dims=(8,6))]),
 					),
 				],
 				recovery_frames = 0, cooldown_frames = 0, stun_frames = 17
@@ -175,7 +121,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(
 						startup_frames = 6, active_frames = 3, base_dmg = 3, fixed_force = 25,
-						hitbox=Hitbox(left_neutral_light_hitbox_shapes_3, right_neutral_light_hitbox_shapes_3),
+						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(4,0), dims=(5,10))]),
 					),
 				],
 				recovery_frames = 3, stun_frames = 20, requires_hit = True
@@ -187,7 +133,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 					Cast(startup_frames=3, active_frames = 1, velocity=(1,0), is_velocity_on_active_frames_only=False),
 					Cast(
 						startup_frames = 2, active_frames = 5, base_dmg=5, var_force=31, fixed_force=52,
-						hitbox=Hitbox(left_neutral_light_hitbox_shapes_4, right_neutral_light_hitbox_shapes_4)
+						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(6,0), dims=(10,5))]),
 					),
 				],
 				recovery_frames = 22, stun_frames = 23, requires_hit = True
@@ -206,15 +152,23 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(
 						startup_frames=13, active_frames=3, base_dmg=13, var_force=40, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
-						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_1, right_aerial_side_light_hitbox_shapes_1),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((8, -2), (6, 3)),
+							CapsuleParams((10, -4), (4, 3))
+						]),
 					),
 					Cast(
 						startup_frames=0, active_frames=2, base_dmg=13, var_force=37, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
-						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_2, right_aerial_side_light_hitbox_shapes_2),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((9, -2), (4, 3)),
+							CapsuleParams((10, -4), (4, 3))
+						]),
 					),
 					Cast(
 						startup_frames=0, active_frames=2, base_dmg=13, var_force=36, fixed_force=45, velocity=(50, 0), is_velocity_on_active_frames_only=True,
-						hitbox=Hitbox(left_aerial_side_light_hitbox_shapes_3, right_aerial_side_light_hitbox_shapes_3),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((12, -5), (2, 2))
+						])
 					)
 				],
 				cooldown_frames=14, stun_frames=17,
@@ -237,7 +191,10 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 					Cast(startup_frames=4, active_frames=1),
 					Cast(
 						startup_frames=4, active_frames=16, base_dmg=16, var_force=5, fixed_force=65, velocity=(50,-10), is_velocity_on_active_frames_only=True, knockback_dir=(0.71,0.71),
-						hitbox=Hitbox(left_aerial_down_light_hitbox_shapes, right_aerial_down_light_hitbox_shapes),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((5, -4), (2, 3)),
+							CapsuleParams((6, -6), (3, 4))
+						]),
 					)
 				],
 				cooldown_frames=9, stun_frames=19
@@ -260,7 +217,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(
 						startup_frames=7, active_frames=5, base_dmg=3, fixed_force=40, self_velocity_on_hit=(0, 0), knockback_dir=(0,1),
-						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_1, right_aerial_neutral_light_hitbox_shapes_1),
+						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(7,1), dims=(5,10))])
 					),
 				],
 				cooldown_frames=7, stun_frames=17
@@ -271,7 +228,11 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 						# fixed force is 40, according to brawlhalla.
 						# however, unable to replicate the exact fixed force in brawlhalla, because somehow the knockback from this cast is lower than the previous cast in brawhalla, with the same force.
 						startup_frames=8, active_frames=5, base_dmg=3, self_velocity_on_hit=(0, 0), knockback_dir=(0, 1), should_cancel_victim_velocity_on_hit_until_next_hit_in_attack = True,
-						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_2, right_aerial_neutral_light_hitbox_shapes_2),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((7, -1), (4, 3)),
+							CapsuleParams((9, 2), (8, 4))
+						])
+
 					),
 				],
 				recovery_frames=4, stun_frames=21
@@ -280,7 +241,10 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(
 						startup_frames=8, active_frames=5, base_dmg=5, var_force=37, fixed_force=71, self_velocity_on_hit=(0,0),
-						hitbox=Hitbox(left_aerial_neutral_light_hitbox_shapes_3, right_aerial_neutral_light_hitbox_shapes_3)
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((4, 0), (10, 5))
+						])
+
 					),
 				],
 				recovery_frames=22, stun_frames=19, requires_hit=True,
@@ -308,7 +272,9 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(
 						startup_frames=7, active_frames=8, base_dmg=18, var_force=55, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True, is_using_charged_dmg=True,
-						hitbox=Hitbox(left_side_heavy_hitbox_shapes, right_side_heavy_hitbox_shapes),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((7, 4), (14, 5))
+						]),
 					),
 					Cast(startup_frames=0, active_frames=9, velocity=(50,0), is_velocity_on_active_frames_only=True),
 				],
@@ -333,19 +299,29 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(
 						startup_frames=7, active_frames=2, base_dmg=16, var_force=60, fixed_force=40,
-						hitbox=Hitbox(left_down_heavy_hitbox_shapes_1, right_down_heavy_hitbox_shapes_1),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((5, -7), (12, 5))
+						]),
 					),
 					Cast(
 						startup_frames=0, active_frames=5, base_dmg=16, var_force=60, fixed_force=40,
-						hitbox=Hitbox(left_down_heavy_hitbox_shapes_2, right_down_heavy_hitbox_shapes_2),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((3, -5.5), (8, 6)),
+							CapsuleParams((6, -4.5), (6, 5))
+						]),
 					),
 					Cast(
 						startup_frames=9, active_frames=3, base_dmg=16, var_force=60, fixed_force=40,
-						hitbox=Hitbox(left_down_heavy_hitbox_shapes_3, right_down_heavy_hitbox_shapes_3),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((-2, -5.5), (14, 5)),
+							CapsuleParams((-8, -4.5), (8, 6))
+						]),
 					),
 					Cast(
 						startup_frames=0, active_frames=2, base_dmg=16, var_force=60, fixed_force=40,
-						hitbox=Hitbox(left_down_heavy_hitbox_shapes_4, right_down_heavy_hitbox_shapes_4),
+						hitbox = create_hitbox_from_capsules(body, [
+							CapsuleParams((-3, -5.5), (14, 5))
+						]),
 					),
 				],
 				recovery_frames=21, stun_frames=18,
