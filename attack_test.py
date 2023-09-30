@@ -12,6 +12,8 @@ class TestAttack(unittest.TestCase):
 		self.space = pymunk.Space()
 
 	def test_step_return_bool_count(self):
+		test_case_3_input = input.Input()
+		test_case_3_input.current[input.INPUT_LIGHT_HIT] = True
 		tests = [
 			{
 				"name": "Test with 2 startup and 3 active frames",
@@ -19,7 +21,10 @@ class TestAttack(unittest.TestCase):
 						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
 						name="dummy_attack", 
 						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.DOWN),
-				"number_of_trues": 4  # expected number of times that function will return true
+				"input": input.Input(),
+				"is_fighter_grounded": True,
+				"number_of_steps": 1000,
+				"expected_number_of_trues": 4  # expected number of times that function will return true
 			},
 			{
 				"name": "Dummy sidelight",
@@ -36,14 +41,33 @@ class TestAttack(unittest.TestCase):
 							],
 							cooldown_frames = 10, stun_frames = 18
 						), 
-						Power([Cast(startup_frames=0, active_frames=1, velocity=(100,0))], fixed_recovery_frames = 2, recovery_frames = 18) 
+						Power([Cast(startup_frames=0, active_frames=1, velocity=(100,0))], fixed_recovery_frames = 2, recovery_frames = 18) ,
 					], 
 					name="unarmed_side_light",
 					requires_fighter_grounding=True,
 					hit_input=AttackHitInput.LIGHT,
 					move_type=AttackMoveType.SIDE,
 				),
-				"number_of_trues": 12
+				"input": input.Input(),
+				"is_fighter_grounded": True,
+				"number_of_steps": 1000,
+				"expected_number_of_trues": 12
+			},
+			{
+				"name": "active forever",
+				"attack": Attack(
+						powers = [Power(casts=[
+							Cast(
+								startup_frames=2, active_frames=3, is_active_until_cancelled=True,
+								hitbox=Hitbox(left_shapes=[], right_shapes=[])
+							)
+						])], 
+						name="dummy_attack", 
+						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.DOWN),
+				"input": test_case_3_input,
+				"is_fighter_grounded": True,
+				"number_of_steps": 1000,
+				"expected_number_of_trues": 1000,
 			},
 			# Add more test cases as required
 		]
@@ -53,15 +77,17 @@ class TestAttack(unittest.TestCase):
 				attack: Attack = test['attack']
 				
 				bool_return_count = 0
-				fighter_input = input.Input()
+				fighter_input = test['input']
+
+				is_fighter_grounded = test["is_fighter_grounded"]
 				attack.activate(side_facing=DUMMY_SIDE_FACING)
 
-				for _ in range(1000):  
-					attack_results: StepAttackResults = step_attack(attack=attack, space=self.space, fighter_input=fighter_input)
+				for _ in range(test['number_of_steps']):  
+					attack_results: StepAttackResults = step_attack(attack=attack, space=self.space, fighter_input=fighter_input, is_fighter_grounded=is_fighter_grounded)
 					if attack_results.is_active:
 						bool_return_count += 1
 
-				self.assertEqual(bool_return_count, test['number_of_trues'], f"unexpected number of times step() returned true: {bool_return_count}")
+				self.assertEqual(bool_return_count, test['expected_number_of_trues'], f"unexpected number of times step() returned true: {bool_return_count}")
 	
 	def test_is_attack_triggered(self):
 		first_case_input = input.Input()

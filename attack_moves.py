@@ -44,7 +44,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 					Cast(startup_frames=3, active_frames=2, velocity=(100,10), is_velocity_on_active_frames_only=True),
 					Cast(
 						startup_frames=1, active_frames=4, velocity=(100,0), is_velocity_on_active_frames_only=False, base_dmg = 13, var_force=20, fixed_force=80,
-						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(7.2,-1), dims=(14.4,5))]),
+						hitbox=create_hitbox_from_capsules(body, [CapsuleParams(offset=(0.5*consts.HURTBOX_WIDTH,-1), dims=(consts.HURTBOX_WIDTH,5))]),
 					)
 				],
 				cooldown_frames = 10, stun_frames = 18
@@ -359,6 +359,59 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		requires_fighter_grounding=True,
 		hit_input=AttackHitInput.HEAVY,
 		move_type=AttackMoveType.NEUTRAL,
+	))
+
+	attacks.append(Attack(
+		powers=[
+			Power(
+				casts=[
+					Cast(
+						startup_frames=15, active_frames=2, base_dmg=17, var_force=46, fixed_force=48,
+					),
+					Cast(
+						startup_frames=0, active_frames=39, base_dmg=17, var_force=46, fixed_force=48, velocity=(0,-40), is_velocity_on_active_frames_only=True, knockback_dir=(0.1, 0.9),
+						hitbox=create_hitbox_from_capsules(body, [
+							CapsuleParams(offset=(-1, -8), dims=(3, 5)),
+						]),
+					),
+					Cast(
+						startup_frames=0, active_frames=1, base_dmg=17, var_force=46, fixed_force=48, velocity=(0,-40), is_active_until_cancelled=True, knockback_dir=(0.1, 0.9),
+						hitbox=create_hitbox_from_capsules(body, [
+							CapsuleParams(offset=(-1, -8), dims=(3, 5)),
+						]),
+					),
+				],
+				cooldown_frames=19, stun_frames=19, cancel_power_on_hit=True, cancel_power_on_ground=True,
+			),
+			Power(
+				casts=[Cast(startup_frames=0, active_frames=1)],
+				requires_no_hit=True, requires_no_grounding=True,
+				recovery_frames=7, stun_frames=19,
+			),
+			Power(
+				casts=[ Cast(startup_frames=3, active_frames=1, velocity=(10,0)) ],
+				requires_hit=True,
+			),
+			Power(
+				casts=[
+					Cast(
+						startup_frames=0, active_frames=2, base_dmg=17, var_force=46, fixed_force=48, knockback_dir=(0.1, 0.9),
+						hitbox=create_hitbox_from_capsules(body, [
+							CapsuleParams(offset=[0, -consts.HURTBOX_HEIGHT*0.5 + 3], dims=[8, 6]),
+						]),
+					),
+					Cast(
+						startup_frames=0, active_frames=7,
+					),
+				],
+				requires_no_hit=True, requires_grounding=True,
+				fixed_recovery_frames=1, recovery_frames=16, stun_frames=19,
+			),
+		],
+		name="unarmed_aerial_down_heavy",
+		requires_fighter_grounding=False,
+		hit_input=AttackHitInput.HEAVY,
+		move_type=AttackMoveType.DOWN,
 	))
 
 	attacks.append(Attack(

@@ -20,7 +20,7 @@ class Cast():
 			self, startup_frames: int, active_frames: int, base_dmg: float = 0, var_force: int = 0, fixed_force: int = 0, hitbox: Hitbox|None = None, 
 		  	velocity: tuple[float, float]|None = None, is_velocity_on_active_frames_only: bool = False, knockback_dir: tuple[float,float] = (1,0), 
 			self_velocity_on_hit: tuple[float,float]|None = None, should_cancel_victim_velocity_on_hit_until_next_hit_in_attack: bool = False,
-			additional_startup_frames: int = 0, extra_dmg_per_extra_startup_frame: float = 0, is_using_charged_dmg: bool = False,
+			additional_startup_frames: int = 0, extra_dmg_per_extra_startup_frame: float = 0, is_using_charged_dmg: bool = False, is_active_until_cancelled=False,
 		):
 		"""
 
@@ -45,17 +45,20 @@ class Cast():
 		self.additional_startup_frames = additional_startup_frames
 		self.extra_dmg_per_extra_startup_frame = extra_dmg_per_extra_startup_frame
 		self.is_using_charged_dmg = is_using_charged_dmg
+		self.is_active_until_cancelled = is_active_until_cancelled
 
 
 		# mutable values
 		self.is_active = False
 		self.has_hit = False
 		self.charged_frames = 0
+		self.is_cancelled = False
 
 class Power():
 	def __init__(
 			self, casts: list[Cast], cooldown_frames: int = 0, fixed_recovery_frames: int = 0, recovery_frames: int = 0, min_charge_frames: int = 0, stun_frames = 0, 
-			requires_hit: bool = False, requires_no_hit: bool = False, cancel_power_on_hit: bool = False
+			requires_hit: bool = False, requires_no_hit: bool = False, cancel_power_on_hit: bool = False, cancel_power_on_ground: bool = False, 
+			requires_grounding: bool = False, requires_no_grounding: bool = False,
 		):
 		self.casts = casts
 		self.cooldown_frames = cooldown_frames
@@ -66,6 +69,9 @@ class Power():
 		self.requires_hit = requires_hit
 		self.requires_no_hit = requires_no_hit
 		self.cancel_power_on_hit = cancel_power_on_hit
+		self.cancel_power_on_ground = cancel_power_on_ground
+		self.requires_grounding = requires_grounding
+		self.requires_no_grounding = requires_no_grounding
 
 		#mutable values
 		self.is_active = False
@@ -111,6 +117,9 @@ class Attack():
 		self.can_do_charging = False
 		# the extra damage gained from charged cast
 		self.charged_dmg = 0
+
+		# this can be true if there is an active Cast that can be cancelled.
+		self.is_attack_cancelled=False
 		 
 		for power in self.powers:
 			for cast in power.casts:
@@ -138,6 +147,7 @@ class Attack():
 				c.is_active = False
 				c.has_hit = False
 				c.charged_frames = 0
+				c.is_cancelled = False
 		current_power = self.powers[self.power_idx]
 		current_cast = current_power.casts[self.cast_idx]
 		self.can_do_charging = current_cast.additional_startup_frames > 0
@@ -158,7 +168,7 @@ class StepAttackResults():
 		self.velocity = velocity
 		self.recover_frames = recover_frames
 
-def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input) -> StepAttackResults:
+def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input, is_fighter_grounded: bool) -> StepAttackResults:
 	if attack.is_active == False:
 		attack.cooldown_timer = max(attack.cooldown_timer - 1, 0)
 		return StepAttackResults(is_active=False, velocity=None, recover_frames=0)
@@ -183,8 +193,13 @@ def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input)
 		current_cast.charged_frames += 1
 		return StepAttackResults(is_active=True, velocity=None, recover_frames=0)
 
-	# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames
-	is_cast_finished = (current_power.cancel_power_on_hit and attack.has_hit) or attack.cast_frame - current_cast.charged_frames > (max(current_cast.startup_frames-1, 0) + current_cast.active_frames)
+	is_power_cancelled_early = (current_power.cancel_power_on_hit and attack.has_hit) or (current_power.cancel_power_on_ground and is_fighter_grounded)
+	is_cast_running_forever = current_cast.is_active_until_cancelled and fighter_input.is_pressed(attack.hit_input.value)
+
+	# the first active frame begins at the same frame as the last startup frame, which is why we subtract by 1, or 0 if no startup frames. any cast frames that were spent on charging aren't counted.
+	is_cast_out_of_frames = attack.cast_frame - current_cast.charged_frames > max(current_cast.startup_frames-1, 0) + current_cast.active_frames
+
+	is_cast_finished = is_power_cancelled_early or (is_cast_out_of_frames and not is_cast_running_forever)
 	if is_cast_finished:
 		if current_cast.hitbox != None:
 			if attack.side_facing == consts.FIGHTER_SIDE_FACING_LEFT:
@@ -195,7 +210,7 @@ def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input)
 					space.remove(shape)
 
 		attack.cast_idx += 1
-		if attack.cast_idx >= len(current_power.casts):
+		if is_power_cancelled_early or attack.cast_idx >= len(current_power.casts):
 			attack.cast_idx = 0
 			attack.power_idx += 1
 			current_power = None
@@ -205,6 +220,10 @@ def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input)
 				if power.requires_hit and not attack.has_hit:
 					continue
 				if power.requires_no_hit and attack.has_hit:
+					continue
+				if power.requires_grounding and not is_fighter_grounded:
+					continue
+				if power.requires_no_grounding and is_fighter_grounded:
 					continue
 				current_power = power
 				attack.power_idx = idx

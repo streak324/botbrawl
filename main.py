@@ -212,7 +212,7 @@ def step_game(_):
 		is_doing_action = False
 		if fighter.recover_timer == 0:
 			for attack in fighter.attacks:
-				attack_results = step_attack(attack, game_state.physics_sim, fighter.input)
+				attack_results = step_attack(attack, game_state.physics_sim, fighter.input, fighter.is_grounded)
 				if attack_results.is_active and not is_doing_action:
 					is_doing_action = True
 					break

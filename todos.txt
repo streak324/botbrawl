@@ -1,20 +1,5 @@
 roughly sorted by priority
 
-- add every unarmed attack move hitbox frames
- x neutral light (no connected hits)
- x neural light (with connected hits)
- x side light
- x down light
- x aerial neutral light (no connected hits)
- x aerial neutral light (with connected hits)
- x aerial side light
- x aerial down light
- x neutral heavy
- x side heavy
- x down heavy
- x aerial neutral heavy (also used for side)
- o aerial down heavy (fighter can have this attack running for as long as they are in the air)
-
 - dodge
  o side dodge
  o neutral dodge
@@ -40,6 +25,23 @@ roughly sorted by priority
 
 --DONE--
 
+x add every unarmed attack move hitbox frames
+ x neutral light (no connected hits)
+ x neural light (with connected hits)
+ x side light
+ x down light
+ x aerial neutral light (no connected hits)
+ x aerial neutral light (with connected hits)
+ x aerial side light
+ x aerial down light
+ x neutral heavy
+ x side heavy
+ x down heavy
+ x aerial neutral heavy (also used for side)
+ x aerial down heavy (fighter can have this attack running for as long as they are in the air)
+
+x heavy attacks can be charged for more damage + force
+
 x knockback direction dependent on attack
  x unarmed n-light 
  x unarmed d-light
@@ -58,5 +60,3 @@ x apply damage and force to other fighter when being hit
  x damage points
 
 x apply cast's velocity to fighter velocity
-
-x heavy attacks can be charged for more damage + force
