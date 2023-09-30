@@ -9,8 +9,8 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		categories=0b1 << (consts.HITBOX_COLLISION_TYPE-1), 
 		mask=0b1 << (consts.HURTBOX_COLLISION_TYPE-1))
 
-	left_side_light_hitbox_shapes = utils.add_capsule_shape(body, (-0.5*consts.HURTBOX_WIDTH,-1),consts.HURTBOX_WIDTH,5)
-	right_side_light_hitbox_shapes = utils.add_capsule_shape(body, (0.5*consts.HURTBOX_WIDTH,-1),consts.HURTBOX_WIDTH,5)
+	left_side_light_hitbox_shapes = utils.add_capsule_shape(body, (-7.2,-1),14.4,5)
+	right_side_light_hitbox_shapes = utils.add_capsule_shape(body, (7.2,-1),14.4,5)
 
 	left_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(body, (-6, 0), 10, 5)
 	right_neutral_light_hitbox_shapes_1 = utils.add_capsule_shape(body, (6, 0), 10, 5)
@@ -48,6 +48,9 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 	left_aerial_down_light_hitbox_shapes = utils.add_capsule_shape(body, (-5, -4), 2, 3) + utils.add_capsule_shape(body, (-6, -6), 3, 4)
 	right_aerial_down_light_hitbox_shapes = utils.add_capsule_shape(body, (5, -4), 2, 3) + utils.add_capsule_shape(body, (6, -6), 3, 4)
 
+	left_side_heavy_hitbox_shapes = utils.add_capsule_shape(body, (-7, 4), 14, 5)
+	right_side_heavy_hitbox_shapes = utils.add_capsule_shape(body, (7, 4), 14, 5)
+
 	#NOTE: add all hitboxes into this loop
 	for shape in (left_side_light_hitbox_shapes + right_side_light_hitbox_shapes 
 		+ left_neutral_light_hitbox_shapes_1 + right_neutral_light_hitbox_shapes_1 
@@ -62,6 +65,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		+ left_aerial_side_light_hitbox_shapes_2 + right_aerial_side_light_hitbox_shapes_2
 		+ left_aerial_side_light_hitbox_shapes_3 + right_aerial_side_light_hitbox_shapes_3
 		+ left_aerial_down_light_hitbox_shapes + right_aerial_down_light_hitbox_shapes
+		+ left_side_heavy_hitbox_shapes + right_side_heavy_hitbox_shapes
 		):
 		shape.collision_type = consts.HITBOX_COLLISION_TYPE	
 		shape.filter = hitbox_filter
@@ -282,13 +286,26 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 				casts = [
 					Cast(startup_frames=0, active_frames=1),
 					Cast(
-						startup_frames=11, active_frames=1, additional_startup_frames=70, 
-						extra_dmg_per_extra_startup_frame=1,
+						startup_frames=11, active_frames=1, additional_startup_frames=70,
+						extra_dmg_per_extra_startup_frame=0.1,
 					),
 				],
 			),
+			Power(
+				casts = [
+					Cast(
+						startup_frames=7, active_frames=8, base_dmg=18, var_force=55, fixed_force=45, velocity=(100,0), is_velocity_on_active_frames_only=True, is_using_charged_dmg=True,
+						hitbox=Hitbox(left_side_heavy_hitbox_shapes, right_side_heavy_hitbox_shapes),
+					),
+					Cast(startup_frames=0, active_frames=9, velocity=(50,0), is_velocity_on_active_frames_only=True),
+				],
+				recovery_frames=18, stun_frames=18,
+			),
 		],
-		name="unarmed_side_heavy"
+		name="unarmed_side_heavy",
+		requires_fighter_grounding=True,
+		hit_input=AttackHitInput.HEAVY,
+		move_type=AttackMoveType.SIDE,
 	))
 
 	return attacks

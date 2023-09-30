@@ -59,7 +59,7 @@ class Fighter():
 		space.damping = 0.9
 		self.attacks: list[Attack] = []
 		self.last_cast_id_hit: int = None
-		self.dmg_points = 0
+		self.dmg_points = 0.0
 		self.body.is_gravity_cancelled_due_to_attacking = False
 		self.body.is_gravity_cancelled_until_attacker_done = False
 		self.body._set_velocity_func(cancel_fighter_gravity_if_allowed)
@@ -141,7 +141,10 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 		victim.recover_timer = power.stun_frames
 		if not cast.has_hit:
 			cast.has_hit = True
-			victim.dmg_points += attack.applied_dmg
+			victim.dmg_points += cast.base_dmg
+			if cast.is_using_charged_dmg:
+				victim.dmg_points += attack.charged_dmg 
+				attack.charged_dmg = 0
 			print("victim has {} damage points".format(victim.dmg_points))
 
 			attacker_applied_velocity = cast.self_velocity_on_hit
@@ -180,7 +183,7 @@ class GameState():
 		self.fighters = [Fighter(self.physics_sim, (30,100)), Fighter(self.physics_sim, (70, 100))]
 
 		wall_body = pymunk.Body(body_type=pymunk.Body.STATIC)
-		p1 = utils.create_pymunk_box(wall_body, (10, 10), (120,30))
+		p1 = utils.create_pymunk_box(wall_body, (10, 10), (140,30))
 		p1.collision_type = consts.WALL_COLLISION_TYPE
 		p1.filter = wall_collision_filter
 		p1.friction = 1
@@ -188,7 +191,7 @@ class GameState():
 		p2.collision_type = consts.WALL_COLLISION_TYPE
 		p2.filter = wall_collision_filter
 		#p2.friction = 1
-		p3 = utils.create_pymunk_box(wall_body, (110, 30), (120,100))
+		p3 = utils.create_pymunk_box(wall_body, (130, 30), (140,100))
 		p3.collision_type = consts.WALL_COLLISION_TYPE
 		p3.filter = wall_collision_filter
 		#p3.friction = 1
@@ -241,6 +244,7 @@ def step_game(_):
 			for attack in fighter.attacks:
 				if is_attack_triggered(attack, fighter.is_grounded, fighter.input):
 					attack.activate(fighter.side_facing)
+					is_doing_action=True
 					break
 
 		attack_velocity = (0,0)
