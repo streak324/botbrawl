@@ -265,7 +265,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			Power(
 				casts = [
 					Cast(startup_frames=0, active_frames=1),
-					Cast(startup_frames=11, active_frames=1, additional_startup_frames=70, extra_dmg_per_extra_startup_frame=0.125),
+					Cast(startup_frames=11, active_frames=1, additional_startup_frames=61, extra_dmg_per_extra_startup_frame=0.125),
 				],
 			),
 			Power(
@@ -292,33 +292,33 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			Power(
 				casts = [
 					Cast(startup_frames=0, active_frames=1),
-					Cast(startup_frames=11, active_frames=1, additional_startup_frames=70, extra_dmg_per_extra_startup_frame=0.125),
+					Cast(startup_frames=11, active_frames=1, additional_startup_frames=61, extra_dmg_per_extra_startup_frame=0.125),
 				],
 			),
 			Power(
 				casts = [
 					Cast(
-						startup_frames=7, active_frames=2, base_dmg=16, var_force=60, fixed_force=40,
+						startup_frames=7, active_frames=2, base_dmg=16, var_force=60, fixed_force=40, is_using_charged_dmg=True,
 						hitbox = create_hitbox_from_capsules(body, [
 							CapsuleParams((5, -7), (12, 5))
 						]),
 					),
 					Cast(
-						startup_frames=0, active_frames=5, base_dmg=16, var_force=60, fixed_force=40,
+						startup_frames=0, active_frames=5, base_dmg=16, var_force=60, fixed_force=40, is_using_charged_dmg=True,
 						hitbox = create_hitbox_from_capsules(body, [
 							CapsuleParams((3, -5.5), (8, 6)),
 							CapsuleParams((6, -4.5), (6, 5))
 						]),
 					),
 					Cast(
-						startup_frames=9, active_frames=3, base_dmg=16, var_force=60, fixed_force=40,
+						startup_frames=9, active_frames=3, base_dmg=16, var_force=60, fixed_force=40, is_using_charged_dmg=True,
 						hitbox = create_hitbox_from_capsules(body, [
 							CapsuleParams((-2, -5.5), (14, 5)),
 							CapsuleParams((-8, -4.5), (8, 6))
 						]),
 					),
 					Cast(
-						startup_frames=0, active_frames=2, base_dmg=16, var_force=60, fixed_force=40,
+						startup_frames=0, active_frames=2, base_dmg=16, var_force=60, fixed_force=40, is_using_charged_dmg=True,
 						hitbox = create_hitbox_from_capsules(body, [
 							CapsuleParams((-3, -5.5), (14, 5))
 						]),
@@ -331,6 +331,34 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		requires_fighter_grounding=True,
 		hit_input=AttackHitInput.HEAVY,
 		move_type=AttackMoveType.DOWN,
+	))
+
+	attacks.append(Attack(
+		powers=[
+			Power(
+				casts = [
+					Cast(startup_frames=0, active_frames=1),
+					Cast(startup_frames=10, active_frames=1, additional_startup_frames=62, extra_dmg_per_extra_startup_frame=0.125),
+				],
+			),
+			Power(
+				casts = [
+					Cast(
+						startup_frames=4, active_frames=6, base_dmg=20, var_force=46, fixed_force=40, is_using_charged_dmg=True,
+						hitbox=create_hitbox_from_capsules(body, [
+							CapsuleParams(offset=(7, 4), dims=(3, 10)),
+							CapsuleParams(offset=(6, 6), dims=(3, 8)),
+							CapsuleParams(offset=(5, 7.5), dims=(3.5, 6)),
+						]),
+					),
+				],
+				fixed_recovery_frames=4, recovery_frames=16,
+			)
+		],
+		name="unarmed_neutral_heavy",
+		requires_fighter_grounding=True,
+		hit_input=AttackHitInput.HEAVY,
+		move_type=AttackMoveType.NEUTRAL,
 	))
 
 	return attacks

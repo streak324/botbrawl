@@ -9,13 +9,11 @@ roughly sorted by priority
  x aerial neutral light (with connected hits)
  x aerial side light
  x aerial down light
- o neutral heavy
+ x neutral heavy
  x side heavy
  x down heavy
  o aerial neutral heavy (also used for side)
  o aerial down heavy (fighter can have this attack running for as long as they are in the air)
-
-- heavy attacks can be charged for more damage + force
 
 - dodge
  o side dodge
@@ -60,3 +58,5 @@ x apply damage and force to other fighter when being hit
  x damage points
 
 x apply cast's velocity to fighter velocity
+
+x heavy attacks can be charged for more damage + force
