@@ -289,6 +289,17 @@ def on_draw():
                           anchor_x='center', anchor_y='center')
 		label.draw()
 
+		facing_triangle_size = 6
+
+		xoffset = facing_triangle_size * (1 - 2*int(fighter.side_facing == consts.FIGHTER_SIDE_FACING_LEFT))
+		x12 = (body.position.x - 0.5*xoffset) * PIXELS_PER_WORLD_UNITS
+		y1 = (body.position.y - 0.5*facing_triangle_size) * PIXELS_PER_WORLD_UNITS
+		y2 = (body.position.y + 0.5*facing_triangle_size) * PIXELS_PER_WORLD_UNITS
+		x3 = (body.position.x + 0.5*xoffset) * PIXELS_PER_WORLD_UNITS
+		y3 = body.position.y * PIXELS_PER_WORLD_UNITS
+		facing_triangle = pyglet.shapes.Triangle(x12, y1, x12, y2, x3, y3)
+		facing_triangle.draw()
+
 @game_window.event
 def on_key_press(key, modifiers):
 	fighter: Fighter = game_state.fighters[DEVICE_CONTROLLED_FIGHTER_INDEX]

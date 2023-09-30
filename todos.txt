@@ -1,10 +1,12 @@
 roughly sorted by priority
 
 - dodge
- o side dodge
- o neutral dodge
- o aerial dodge
+ o add some indicator to show dodge in effect
+ o neutral dodge (16 frames)
+ o aerial neutral dodge (20 frames)
+ o aerial side dodge (12 frames)
  o gravity cancel attacks
+
 - death + respawn when far enough away from the arena
 
 - grapple into the sides of the wall
@@ -14,6 +16,20 @@ roughly sorted by priority
 - MORE SOON
 
 --LOW PRIORITIES
+
+- show indicator for when attack is charging
+- show indicator for when fighter is stunned
+- show indicator for when fighter is recovering
+- show indicator for when fighter is on a cooldown
+- show indicator for when fighter is attacking
+
+- dashing
+ o forward
+ o backward
+  a. it looks like the dodge/dash button plus the left/right side movement input that is opposite of what fighter's facing has to be within 5 frames before its a forward dash.
+
+
+- moore weapons
 
 - allow casts to alter size of hurtbox on certain frames
  o second cast of neutral down light
