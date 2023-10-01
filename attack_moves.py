@@ -344,7 +344,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			Power(
 				casts = [
 					Cast(
-						startup_frames=4, active_frames=6, base_dmg=20, var_force=46, fixed_force=40, is_using_charged_dmg=True,
+						startup_frames=4, active_frames=6, base_dmg=20, var_force=46, fixed_force=40, is_using_charged_dmg=True, knockback_dir=(0.1,0.9),
 						hitbox=create_hitbox_from_capsules(body, [
 							CapsuleParams(offset=(7, 4), dims=(3, 10)),
 							CapsuleParams(offset=(6, 6), dims=(3, 8)),
@@ -419,7 +419,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 			Power(
 				casts=[
 					Cast(
-						startup_frames=11, active_frames=3, base_dmg=15, var_force=40, fixed_force=55, velocity=(0,20), is_velocity_on_active_frames_only=True,
+						startup_frames=11, active_frames=3, base_dmg=15, var_force=40, fixed_force=55, velocity=(0,20), is_velocity_on_active_frames_only=True, knockback_dir=(0.1,0.9),
 						hitbox=create_hitbox_from_capsules(body, [
 							CapsuleParams(offset=(7, 4), dims=(3, 8)),
 							CapsuleParams(offset=(6, 6), dims=(3, 8)),
@@ -427,7 +427,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 						]),
 					),
 					Cast(
-						startup_frames=0, active_frames=3, base_dmg=15, var_force=40, fixed_force=55, velocity=(0,20), is_velocity_on_active_frames_only=True,
+						startup_frames=0, active_frames=3, base_dmg=15, var_force=40, fixed_force=55, velocity=(0,20), is_velocity_on_active_frames_only=True, knockback_dir=(0.1,0.9),
 						hitbox=create_hitbox_from_capsules(body, [
 							CapsuleParams(offset=(7, 4), dims=(3, 6)),
 							CapsuleParams(offset=(6, 6), dims=(3, 6)),
@@ -435,7 +435,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 						]),
 					),
 					Cast(
-						startup_frames=0, active_frames=3, base_dmg=15, var_force=40, fixed_force=55, velocity=(0,15), is_velocity_on_active_frames_only=True,
+						startup_frames=0, active_frames=3, base_dmg=15, var_force=40, fixed_force=55, velocity=(0,15), is_velocity_on_active_frames_only=True, knockback_dir=(0.1,0.9),
 						hitbox=create_hitbox_from_capsules(body, [
 							CapsuleParams(offset=(7, 4), dims=(3, 5)),
 							CapsuleParams(offset=(6, 6), dims=(3, 5)),
