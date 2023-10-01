@@ -139,7 +139,8 @@ def pre_solve_hurtbox_hitbox(arbiter: pymunk.Arbiter, space: pymunk.Space, data)
 		attack: Attack = arbiter.shapes[1].attack
 		attack.has_hit = True
 		victim.recover_timer = power.stun_frames
-		if not cast.has_hit:
+		if not power.has_hit:
+			power.has_hit = True
 			cast.has_hit = True
 			victim.dmg_points += cast.base_dmg
 			if cast.is_using_charged_dmg:

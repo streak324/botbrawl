@@ -2,3 +2,4 @@
 - fix collision issue with going into the wall
 - fix smoothness issue on desktop
 - somehow delay the bounce effect until hitbox frames are finished on air dlight
+- upper aerial attacks should only be done once in the air, or limited by the current rules are in brawlhalla

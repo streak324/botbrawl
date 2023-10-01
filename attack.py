@@ -75,6 +75,7 @@ class Power():
 
 		#mutable values
 		self.is_active = False
+		self.has_hit = False
 
 # the value of the enum is equal to the attack type's input value
 class AttackHitInput(Enum):
@@ -143,6 +144,7 @@ class Attack():
 		self.charged_dmg = 0
 		for p in self.powers:
 			p.is_active = False
+			p.has_hit = False
 			for c in p.casts:
 				c.is_active = False
 				c.has_hit = False

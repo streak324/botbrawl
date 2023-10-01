@@ -28,8 +28,9 @@ roughly sorted by priority
  o backward
   a. it looks like the dodge/dash button plus the left/right side movement input that is opposite of what fighter's facing has to be within 5 frames before its a forward dash.
 
+- more weapons
 
-- moore weapons
+- throwing
 
 - allow casts to alter size of hurtbox on certain frames
  o second cast of neutral down light
