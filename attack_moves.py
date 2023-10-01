@@ -435,7 +435,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 						]),
 					),
 					Cast(
-						startup_frames=0, active_frames=3, base_dmg=15, var_force=40, fixed_force=55, velocity=(0,10), is_velocity_on_active_frames_only=True,
+						startup_frames=0, active_frames=3, base_dmg=15, var_force=40, fixed_force=55, velocity=(0,15), is_velocity_on_active_frames_only=True,
 						hitbox=create_hitbox_from_capsules(body, [
 							CapsuleParams(offset=(7, 4), dims=(3, 5)),
 							CapsuleParams(offset=(6, 6), dims=(3, 5)),
@@ -450,6 +450,7 @@ def add_unarmed_moves(body: pymunk.Body) -> list[Attack]:
 		requires_fighter_grounding=False,
 		hit_input=AttackHitInput.HEAVY,
 		move_type=AttackMoveType.NEUTRAL,
+		is_jump_attack=True,
 	))
 
 	return attacks

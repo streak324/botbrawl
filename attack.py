@@ -88,7 +88,7 @@ class AttackMoveType(Enum):
 	DOWN=3
 
 class Attack():
-	def __init__(self, powers: list[Power], name: str, requires_fighter_grounding: bool, hit_input: AttackHitInput, move_type: AttackMoveType):
+	def __init__(self, powers: list[Power], name: str, requires_fighter_grounding: bool, hit_input: AttackHitInput, move_type: AttackMoveType, is_jump_attack: bool = False):
 		""" 
 			### Arguments
 				requires_fighter_grounding : whether the attack needs the fighter to be grounded or in the air for the attack to be activated
@@ -100,6 +100,7 @@ class Attack():
 		self.requires_fighter_grounding = requires_fighter_grounding
 		self.hit_input = hit_input
 		self.move_type = move_type
+		self.is_jump_attack = is_jump_attack
 
 		# mutable values down below
 		
@@ -119,8 +120,8 @@ class Attack():
 		# the extra damage gained from charged cast
 		self.charged_dmg = 0
 
-		# this can be true if there is an active Cast that can be cancelled.
-		self.is_attack_cancelled=False
+		# when is_attack_jump == true, attack can only be activated if has_jump_attack_use == True or fighter has spare jumps. switched to false when attack is activated. set to True when fighter hits back to the ground
+		self.has_jump_attack_use = False
 		 
 		for power in self.powers:
 			for cast in power.casts:
@@ -141,6 +142,7 @@ class Attack():
 		self.recover_timer = 0
 		self.has_hit = False
 		self.is_victim_velocity_cancelled_until_next_hit = False
+		self.has_jump_attack_use = False
 		self.charged_dmg = 0
 		for p in self.powers:
 			p.is_active = False
@@ -154,15 +156,37 @@ class Attack():
 		current_cast = current_power.casts[self.cast_idx]
 		self.can_do_charging = current_cast.additional_startup_frames > 0
 
-def is_attack_triggered(attack: Attack, is_fighter_grounded: bool, fighter_input: input.Input) -> bool:
+class AttackTriggerResults():
+	def __init__(self, can_activate: bool, is_needing_fighter_jump: bool):
+		self.can_activate = can_activate
+		self.is_needing_fighter_jump = is_needing_fighter_jump
+	def __str__(self):
+		return 'AttackTriggerResults(can_activate={}, is_needing_fighter_jump={})'.format(self.can_activate, self.is_needing_fighter_jump)
+	def __repr__(self):
+		return 'AttackTriggerResults(can_activate={}, is_needing_fighter_jump={})'.format(self.can_activate, self.is_needing_fighter_jump)
+	def __eq__(self, other):
+		if isinstance(other, AttackTriggerResults):
+			return self.can_activate == other.can_activate and self.is_needing_fighter_jump == other.is_needing_fighter_jump
+		return False
+
+def is_attack_triggered(attack: Attack, is_fighter_grounded: bool, fighter_input: input.Input, spare_fighter_jumps: int) -> AttackTriggerResults:
 	"""
 		for an attack to be triggered, the fighter's grounding must be satisified, and the attack's hit and move input must be tapped
+		for jump attacks, it can only be triggered if theres spare jumps (attack has a spare jump, or fighter)
+		returns an object with is_attacking, is_needing_fighter_jump. if is_needing_fighter_jump == True, the fighter's spare jumps has to be decremented
 	"""
 	is_side = attack.move_type == AttackMoveType.SIDE and ( fighter_input.is_pressed(input.INPUT_MOVE_LEFT) or fighter_input.is_pressed(input.INPUT_MOVE_RIGHT))
 	is_down = attack.move_type == AttackMoveType.DOWN and fighter_input.is_pressed(input.INPUT_MOVE_DOWN)
 	is_neutral = attack.move_type == AttackMoveType.NEUTRAL
 	is_move_met = is_side or is_down or is_neutral
-	return is_move_met and fighter_input.is_tapped(attack.hit_input.value) and attack.requires_fighter_grounding == is_fighter_grounded
+
+	is_input_and_grounding_met = is_move_met and fighter_input.is_tapped(attack.hit_input.value) and attack.requires_fighter_grounding == is_fighter_grounded
+	is_jump_met = not attack.is_jump_attack or attack.has_jump_attack_use or spare_fighter_jumps > 0
+
+	return AttackTriggerResults(
+		can_activate = is_input_and_grounding_met and is_jump_met,
+		is_needing_fighter_jump = attack.is_jump_attack and not attack.has_jump_attack_use
+	)
 
 class StepAttackResults():
 	def __init__(self, is_active: bool, velocity: tuple[float, float]|None, recover_frames: int):
@@ -171,6 +195,7 @@ class StepAttackResults():
 		self.recover_frames = recover_frames
 
 def step_attack(attack: Attack, space: pymunk.Space, fighter_input: input.Input, is_fighter_grounded: bool) -> StepAttackResults:
+	attack.has_jump_attack_use = attack.has_jump_attack_use or is_fighter_grounded
 	if attack.is_active == False:
 		attack.cooldown_timer = max(attack.cooldown_timer - 1, 0)
 		return StepAttackResults(is_active=False, velocity=None, recover_frames=0)

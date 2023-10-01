@@ -61,7 +61,7 @@ class TestAttack(unittest.TestCase):
 								startup_frames=2, active_frames=3, is_active_until_cancelled=True,
 								hitbox=Hitbox(left_shapes=[], right_shapes=[])
 							)
-						])], 
+						])],
 						name="dummy_attack", 
 						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.DOWN),
 				"input": test_case_3_input,
@@ -94,10 +94,26 @@ class TestAttack(unittest.TestCase):
 		first_case_input.current[input.INPUT_LIGHT_HIT] = True
 		first_case_input.current[input.INPUT_MOVE_LEFT] = True
 		second_case_input = input.Input()
-		third_case_input = input.Input()
-		third_case_input.current[input.INPUT_HEAVY_HIT] = True
+
+		heavy_only_input = input.Input()
+		heavy_only_input.current[input.INPUT_HEAVY_HIT] = True
+
 		fourth_case_input = input.Input()
 		fourth_case_input.current[input.INPUT_LIGHT_HIT] = True
+
+		air_attack_with_jump_use = Attack(
+						powers = [Power(casts=[Cast(startup_frames=0, active_frames=1, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
+						name="dummy_attack", 
+						requires_fighter_grounding=False, hit_input=AttackHitInput.HEAVY, move_type=AttackMoveType.NEUTRAL, is_jump_attack=True)
+		air_attack_with_jump_use.has_jump_attack_use = True
+
+
+		air_attack_without_jump_use = Attack(
+						powers = [Power(casts=[Cast(startup_frames=0, active_frames=1, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
+						name="dummy_attack", 
+						requires_fighter_grounding=False, hit_input=AttackHitInput.HEAVY, move_type=AttackMoveType.NEUTRAL, is_jump_attack=True)
+		air_attack_without_jump_use.has_jump_attack_use = False
+
 		tests = [
 			{
 				"name": "side_light_met",
@@ -105,9 +121,10 @@ class TestAttack(unittest.TestCase):
 						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
 						name="dummy_attack", 
 						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.SIDE),
+				"spare_fighter_jumps": 0,
 				"is_fighter_grounded": True,
 				"fighter_input": first_case_input,
-				"want": True  # expected number of times that function will return true
+				"want": AttackTriggerResults(can_activate=True, is_needing_fighter_jump=False)
 			},
 			{
 				"name": "down_light_not_met",
@@ -115,9 +132,10 @@ class TestAttack(unittest.TestCase):
 						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
 						name="dummy_attack", 
 						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.DOWN),
+				"spare_fighter_jumps": 0,
 				"is_fighter_grounded": True,
 				"fighter_input": second_case_input,
-				"want": False  # expected number of times that function will return true
+				"want": AttackTriggerResults(can_activate=False, is_needing_fighter_jump=False)
 			},
 			{
 				"name": "neutral_heavy_met",
@@ -125,9 +143,10 @@ class TestAttack(unittest.TestCase):
 						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
 						name="dummy_attack", 
 						requires_fighter_grounding=True, hit_input=AttackHitInput.HEAVY, move_type=AttackMoveType.NEUTRAL),
+				"spare_fighter_jumps": 0,
 				"is_fighter_grounded": True,
-				"fighter_input": third_case_input,
-				"want": True  # expected number of times that function will return true
+				"fighter_input": heavy_only_input,
+				"want": AttackTriggerResults(can_activate=True, is_needing_fighter_jump=False)
 			},
 			{
 				"name": "side_light_not_met",
@@ -135,9 +154,34 @@ class TestAttack(unittest.TestCase):
 						powers = [Power(casts=[Cast(startup_frames=2, active_frames=3, hitbox=Hitbox(left_shapes=[], right_shapes=[]))])], 
 						name="dummy_attack", 
 						requires_fighter_grounding=True, hit_input=AttackHitInput.LIGHT, move_type=AttackMoveType.SIDE),
+				"spare_fighter_jumps": 0,
 				"is_fighter_grounded": True,
 				"fighter_input": fourth_case_input,
-				"want": False  # expected number of times that function will return true
+				"want": AttackTriggerResults(can_activate=False, is_needing_fighter_jump=False)
+			},
+			{
+				"name": "jump_not_met",
+				"attack": air_attack_without_jump_use,
+				"spare_fighter_jumps": 0,
+				"is_fighter_grounded": False,
+				"fighter_input": heavy_only_input,
+				"want": AttackTriggerResults(can_activate=False, is_needing_fighter_jump=True),
+			},
+			{
+				"name": "has_jump_use",
+				"attack": air_attack_with_jump_use,
+				"spare_fighter_jumps": 0,
+				"is_fighter_grounded": False,
+				"fighter_input": heavy_only_input,
+				"want": AttackTriggerResults(can_activate=True, is_needing_fighter_jump=False),
+			},
+			{
+				"name": "met_but_needs_fighter_jump",
+				"attack": air_attack_without_jump_use,
+				"spare_fighter_jumps": 1,
+				"is_fighter_grounded": False,
+				"fighter_input": heavy_only_input,
+				"want": AttackTriggerResults(can_activate=True, is_needing_fighter_jump=True),
 			},
 		]
 		for test in tests:
@@ -145,9 +189,10 @@ class TestAttack(unittest.TestCase):
 				attack: Attack = test['attack']
 				fighter_input: input.Input = test['fighter_input']
 				is_fighter_grounded: bool = test['is_fighter_grounded'] 
+				spare_fighter_jumps: int = test['spare_fighter_jumps']
 				want: bool = test['want']
-				got: bool = is_attack_triggered(attack, is_fighter_grounded, fighter_input)
-				self.assertEqual(want, got, "want {}, got {}".format(want, got))
+				got = is_attack_triggered(attack, is_fighter_grounded, fighter_input, spare_fighter_jumps)
+				self.assertEqual(want, got)
 
 if __name__ == '__main__':
 	unittest.main()

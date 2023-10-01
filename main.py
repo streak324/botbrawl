@@ -240,10 +240,15 @@ def step_game(_):
 			jump_v = math.sqrt(2.0 * JUMP_HEIGHT * abs(game_state.physics_sim.gravity.y))
 			y_force = fighter.body.mass * jump_v
 			fighter.body.apply_impulse_at_local_point((0, y_force))
+			is_doing_action = True
 
 		if fighter.recover_timer == 0 and is_doing_action == False:
 			for attack in fighter.attacks:
-				if is_attack_triggered(attack, fighter.is_grounded, fighter.input):
+				trigger_results = is_attack_triggered(attack, fighter.is_grounded, fighter.input, fighter.midair_jumps_left)
+				if trigger_results.can_activate:
+					if trigger_results.is_needing_fighter_jump:
+						fighter.midair_jumps_left = fighter.midair_jumps_left - 1
+
 					attack.activate(fighter.side_facing)
 					is_doing_action=True
 					break
