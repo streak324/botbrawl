@@ -6,6 +6,8 @@ roughly sorted by priority
  o aerial neutral dodge (20 frames)
  o aerial side dodge (12 frames)
  o gravity cancel attacks
+ o side dodge. could be alternative to dashing. 12 frames?
+ o cooldown between dodges (70 frames)
 
 - death + respawn when far enough away from the arena
 

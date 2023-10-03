@@ -28,7 +28,8 @@ PIXELS_PER_WORLD_UNITS = 8
 FIGHTER_COLLIDER_WIDTH = 8
 FIGHTER_COLLIDER_HEIGHT = 15
 
-HURTBOX_COLOR = (171, 174, 105, 128)
+HURTBOX_COLOR = (20, 60, 86, 255)
+HURTBOX_DODGE_COLOR = (128, 0, 0, 255)
 
 FRAMES_PER_SECOND = 60
 TIMESTEP = 1/FRAMES_PER_SECOND
@@ -101,6 +102,9 @@ class Fighter():
 		self.recover_timer = 0
 		#whether the player is currently getting hit by an action
 		self.is_hit = False
+
+		self.is_dodging = False
+		self.dodge_counter = 0
 
 	def compute_grounding(self):
 		grounding = {
