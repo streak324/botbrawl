@@ -15,6 +15,16 @@ class Input():
 		return self.current[input_index] and self.prev[input_index] == False
 	def is_pressed(self, input_index) -> bool:
 		return self.current[input_index]
+	def is_one_pressed(self, input_indices) -> bool:
+		b = True
+		for idx in input_indices:
+			b = b or self.current[idx]
+		return b
+	def are_pressed(self, input_indices) -> bool:
+		b = True
+		for idx in input_indices:
+			b = b and self.current[idx]
+		return b
 	def copy_current_to_previous(self):
 		for i, v in enumerate(self.current):
 			self.prev[i] = v

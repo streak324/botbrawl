@@ -28,8 +28,8 @@ PIXELS_PER_WORLD_UNITS = 8
 FIGHTER_COLLIDER_WIDTH = 8
 FIGHTER_COLLIDER_HEIGHT = 15
 
-HURTBOX_COLOR = (20, 60, 86, 255)
-HURTBOX_DODGE_COLOR = (128, 0, 0, 255)
+HURTBOX_COLOR = (78, 0, 129, 255)
+HURTBOX_DODGE_COLOR = (154, 0, 255, 255)
 
 FRAMES_PER_SECOND = 60
 TIMESTEP = 1/FRAMES_PER_SECOND
@@ -76,10 +76,13 @@ class Fighter():
 		hurtbox_shapes = utils.add_capsule_shape(self.body, (0,0), (consts.HURTBOX_WIDTH, consts.HURTBOX_HEIGHT))
 		for shape in hurtbox_shapes:
 			shape.collision_type = consts.HURTBOX_COLLISION_TYPE 
+			shape.color = HURTBOX_COLOR
 			shape.filter = hurtbox_filter
 			shape.sensor = True
 			shape.fighter = self
 			space.add(shape)
+
+		self.hurtbox_shapes = hurtbox_shapes
 
 		self.wall_collider = utils.create_pymunk_box(self.body,
 			(-FIGHTER_COLLIDER_WIDTH*0.5, -FIGHTER_COLLIDER_HEIGHT*0.5-1), 
@@ -104,7 +107,9 @@ class Fighter():
 		self.is_hit = False
 
 		self.is_dodging = False
-		self.dodge_counter = 0
+		self.dodge_timer = 0
+		self.gravity_cancel_timer = 0
+		self.dodge_cooldown_timer = 0
 
 	def compute_grounding(self):
 		grounding = {
@@ -255,7 +260,7 @@ def step_game(_):
 
 					attack.activate(fighter.side_facing)
 					is_doing_action=True
-					break
+					break	
 
 		attack_velocity = (0,0)
 		if is_doing_action and attack_results.is_active and attack_results.velocity != None:
@@ -266,11 +271,39 @@ def step_game(_):
 		if is_doing_action or fighter.recover_timer == 0:
 			fighter.body.velocity = dx + attack_velocity[0], fighter.body._get_velocity().y
 
+		if fighter.dodge_cooldown_timer == 0 and is_doing_action == False and fighter.input.is_tapped(input.INPUT_DODGE):
+			fighter.is_dodging = True
+			fighter.dodge_cooldown_timer = consts.DODGE_COOLDOWN_FRAMES
+			any_moves_pressed = fighter.input.is_one_pressed([input.INPUT_JUMP, input.INPUT_MOVE_LEFT, input.INPUT_MOVE_RIGHT, input.INPUT_MOVE_DOWN])
+			are_left_right_pressed = fighter.input.is_one_pressed([input.INPUT_MOVE_LEFT, input.INPUT_MOVE_RIGHT])
+			if fighter.is_grounded:
+				if are_left_right_pressed:
+					fighter.dodge_timer = consts.MOVE_DODGE_INVULN_FRAMES
+				else:
+					fighter.dodge_timer = consts.NEUTRAL_DODGE_INVULN_FRAMES
+			else:
+				if any_moves_pressed:
+					fighter.dodge_timer = consts.MOVE_DODGE_INVULN_FRAMES
+				else:
+					fighter.dodge_timer = consts.AIR_NEUTRAL_DODGE_INVULN_FRAMES
+					fighter.gravity_cancel_timer = consts.GRAVITY_CANCEL_WINDOW_FRAMES
+
+		is_doing_action = fighter.is_dodging
+		for shape in fighter.hurtbox_shapes:
+			shape.color = HURTBOX_COLOR
+			if fighter.is_dodging:
+				shape.color = HURTBOX_DODGE_COLOR
+
 		fighter.body.velocity = fighter.body._get_velocity().x, max(fighter.body._get_velocity().y, -FALL_VELOCITY) + attack_velocity[1]
 
 		if fighter.is_hit == False:
 			fighter.recover_timer = max(fighter.recover_timer-1, 0)
 		fighter.is_hit = False
+
+		fighter.is_dodging = fighter.dodge_timer > 0
+		if fighter.is_dodging == False:
+			fighter.dodge_cooldown_timer = max(fighter.dodge_cooldown_timer-1, 0)
+		fighter.dodge_timer = min(fighter.dodge_timer - 1, 0)
 
 		fighter.body.is_gravity_cancelled_due_to_attacking = fighter.body.is_gravity_cancelled_due_to_attacking and attack_results.is_active
 		#current input should be copied into previous input AFTER all logic needing input has been processed
